@@ -5,16 +5,8 @@ import { USER_ROLES } from "../constants/USER_ROLES";
 
 const globalNavigations: NavigationLink[] = [
   {
-    title: "About",
-    href: "/about",
-  },
-  {
-    title: "API Health Check",
-    href: "/api/health",
-  },
-  {
-    title: "API Visits",
-    href: "/api/visits",
+    title: "Zk Login",
+    href: "/zklogin",
   },
 ];
 
