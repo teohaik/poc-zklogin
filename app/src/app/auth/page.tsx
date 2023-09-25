@@ -73,15 +73,15 @@ export default function Page() {
     }, []);
 
     return (
-        <div id="bj" className="flex flex-col items-center mt-10">
-            <h2>Callback page</h2>
+        <div id="cb" className="flex flex-col items-center mt-10">
+            <h1>Callback page</h1>
 
                 <div id="header" className="pb-5 pt-6">
                     <h4>Login with External Provider Completed</h4>
                 </div>
 
                 <div id="contents" className="font-medium pb-6">
-                    <p>ZKP Ephemeral Public Key = {publicKey}</p>
+                    <p>ZKP Ephemeral Public Key  =  {publicKey}</p>
                 </div>
 
         </div>
