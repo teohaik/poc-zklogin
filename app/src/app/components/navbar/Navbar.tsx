@@ -10,7 +10,7 @@ import { useAuthentication } from "@/app/hooks/useAuthentication";
 export const Navbar = () => {
   const pathname = usePathname();
   const { navigations } = useGetNavigations();
-  console.log(pathname);
+
   const { user, handleLogout } = useAuthentication();
 
   return (
@@ -37,14 +37,14 @@ export const Navbar = () => {
           const isActive =
             (isAtHome && isHomeLink) ||
             (!isHomeLink && pathname.includes(href));
-          console.log({
-            href,
-            isAtHome,
-            isHomeLink,
-            pathParts,
-            pathSuffix,
-            isActive,
-          });
+          // console.log({
+          //   href,
+          //   isAtHome,
+          //   isHomeLink,
+          //   pathParts,
+          //   pathSuffix,
+          //   isActive,
+          // });
 
           return (
             <Link

@@ -8,6 +8,10 @@ const globalNavigations: NavigationLink[] = [
     title: "Zk Login",
     href: "/zklogin",
   },
+  {
+    title: "Auth callback",
+    href: "/auth",
+  },
 ];
 
 export const useGetNavigations = () => {
