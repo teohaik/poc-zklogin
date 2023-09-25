@@ -1,17 +1,14 @@
 'use client'
 
-import {generateNonce, generateRandomness, jwtToAddress} from '@mysten/zklogin';
+import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
-import {useEffect, useLayoutEffect, useState} from "react";
-import jwt_decode from "jwt-decode";
-import {LoginResponse, LoginData} from "@/app/types/Authentication";
-import {toBigIntBE} from "bigint-buffer";
+import {useLayoutEffect, useState} from "react";
+import {LoginData} from "@/app/types/Authentication";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
-import axios from "axios";
 import {toB64} from "@mysten/bcs";
 
 
-export default function zkLogin() {
+export default function ZkLogin() {
 
 
     const {suiClient} = useSui();
@@ -51,15 +48,14 @@ export default function zkLogin() {
         prepareLogin().then((loginData) => {
 
             const REDIRECT_URI = 'https://zklogin-dev-redirect.vercel.app/api/auth';
-            //const REDIRECT_URI = 'http://localhost:3000/auth';
             const protocol = window.location.protocol;
             const host = window.location.host;
-            console.log("protocol = " + protocol);
-            console.log("host = " + host);
+            const customRedirectUri = protocol + "//" + host + "/auth";
+            console.log("customRedirectUri = " + customRedirectUri);
             const params = new URLSearchParams({
                 // When using the provided test client ID + redirect site, the redirect_uri needs to be provided in the state.
                 state: new URLSearchParams({
-                    redirect_uri: protocol+host+"/auth"
+                    redirect_uri: customRedirectUri
                 }).toString(),
                 // Test Client ID for devnet / testnet:
                 client_id: '25769832374-famecqrhe2gkebt5fvqms2263046lj96.apps.googleusercontent.com',

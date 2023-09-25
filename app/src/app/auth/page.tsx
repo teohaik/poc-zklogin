@@ -4,8 +4,7 @@ import {useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
 import {LoginData, LoginResponse} from "@/app/types/Authentication";
 
-import {generateRandomness, jwtToAddress} from '@mysten/zklogin';
-import {bigint} from "zod";
+import {jwtToAddress} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
