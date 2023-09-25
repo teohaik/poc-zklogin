@@ -12,7 +12,7 @@ import {fromB64} from "@mysten/bcs";
 
 export default function Page() {
 
-    const [error, setError] = useState<string | null>(null);
+    const [publicKey, setPublicKey] = useState<string | null>(null);
 
     useLayoutEffect(() => {
         try {
@@ -20,7 +20,7 @@ export default function Page() {
             const hash = new URLSearchParams(window.location.hash.slice(1));
             const jwt_token_encoded = hash.get("id_token");
             if (jwt_token_encoded) {
-                debugger;
+
                 const loginData: LoginData = JSON.parse(localStorage.getItem("loginData")!);
 
                 const decodedJwt = jwt_decode(jwt_token_encoded!) as LoginResponse;
@@ -39,8 +39,7 @@ export default function Page() {
                 console.log("ephemeralPublicKey b64 =", loginData.ephemeralPublicKey);
 
                 const epk : Uint8Array = fromB64(loginData.ephemeralPublicKey);
-                debugger;
-                console.log("epk =", epk);
+
                 const zkpPayload =
                     {
                         jwt: jwt_token_encoded,
@@ -53,6 +52,7 @@ export default function Page() {
                         keyClaimName: "sub"
                     };
                 console.log("about to post zkpPayload = ", zkpPayload);
+                setPublicKey(zkpPayload.extendedEphemeralPublicKey);
                 axios.post('https://prover.mystenlabs.com/v1', zkpPayload,
                     {
                         headers: {
@@ -76,14 +76,14 @@ export default function Page() {
 
     return (
         <div id="bj" className="flex flex-col items-center mt-10">
-            <h3>Callback page</h3>
+            <h2>Callback page</h2>
 
-                <div id="header" className="pb-5">
+                <div id="header" className="pb-5 pt-6">
                     <h4>Login with External Provider Completed</h4>
                 </div>
 
                 <div id="contents" className="font-medium pb-6">
-                    <p>test</p>
+                    <p>ZKP Ephemeral Public Key = {publicKey}</p>
                 </div>
 
         </div>

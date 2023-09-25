@@ -52,11 +52,14 @@ export default function zkLogin() {
 
             const REDIRECT_URI = 'https://zklogin-dev-redirect.vercel.app/api/auth';
             //const REDIRECT_URI = 'http://localhost:3000/auth';
-
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            console.log("protocol = " + protocol);
+            console.log("host = " + host);
             const params = new URLSearchParams({
                 // When using the provided test client ID + redirect site, the redirect_uri needs to be provided in the state.
                 state: new URLSearchParams({
-                    redirect_uri: "http://localhost:3000/auth"
+                    redirect_uri: protocol+host+"/auth"
                 }).toString(),
                 // Test Client ID for devnet / testnet:
                 client_id: '25769832374-famecqrhe2gkebt5fvqms2263046lj96.apps.googleusercontent.com',
