@@ -15,7 +15,6 @@ export default function Page() {
 
     useLayoutEffect(() => {
         try {
-            console.log("USE EFFECT");
             const hash = new URLSearchParams(window.location.hash.slice(1));
             const jwt_token_encoded = hash.get("id_token");
             if (jwt_token_encoded) {
