@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@mysten/bcs": "^0.7.4",
     "@mysten/sui.js": "^0.42.0",
     "@mysten/wallet-kit": "^0.7.2",
     "@mysten/zklogin": "^0.1.4",
