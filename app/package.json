@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "env-cmd -f ./.env.development.local next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
+    "env-cmd": "^10.1.0",
     "postcss": "^8.4.27",
     "tailwindcss": "^3.3.3"
   }

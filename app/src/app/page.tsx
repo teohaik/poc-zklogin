@@ -1,16 +1,17 @@
 "use client";
 
+import axios from "axios";
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
-import {LoginData} from "@/app/types/Authentication";
+import {LoginData, PersistentData} from "@/app/types/UserInfo";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
 import {toB64} from "@mysten/bcs";
 
 export default function Home() {
 
 
-    const {suiClient} = useSui();
+    const { suiClient} = useSui();
     const [error, setError] = useState<string | null>(null);
 
     const [loginData, setLoginData] = useState<string | null>(null);
@@ -26,11 +27,18 @@ export default function Home() {
         const ephemeralPublicKey = ephemeralKeyPair.getPublicKey()
         const jwt_randomness = generateRandomness();
         const nonce = generateNonce(ephemeralKeyPair.getPublicKey(), maxEpoch, jwt_randomness);
+        const ephemeralPublicKeyB64 = toB64(ephemeralPublicKey.toSuiBytes());
 
         console.log("epoch = " + epoch);
-        console.log("nonce = " + nonce);
+        console.log("salt = " + nonce);
         console.log("ephemeral public key = " + ephemeralPublicKey);
-        console.log("ephemeral public key b64 = " + toB64(ephemeralPublicKey.toSuiBytes()));
+        console.log("ephemeral public key b64 = " + ephemeralPublicKeyB64);
+
+        const dataToStore : PersistentData = {
+            ephemeralPublicKey: ephemeralPublicKeyB64,
+            nonce: nonce,
+        };
+        axios.post('/api/userinfo/store', dataToStore).then((response) => { console.log("Ephemeral Data Saved.  response = ", response)});
 
         const loginData: LoginData = {
             randomness: jwt_randomness.toString(),
@@ -61,7 +69,7 @@ export default function Home() {
                 redirect_uri: REDIRECT_URI,
                 response_type: 'id_token',
                 scope: 'openid',
-                // See below for details about generation of the nonce
+                // See below for details about generation of the salt
                 nonce: loginData.nonce,
             });
 

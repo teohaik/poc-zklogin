@@ -2,12 +2,14 @@
 
 import {useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
-import {LoginData, LoginResponse} from "@/app/types/Authentication";
+import {LoginData, LoginResponse} from "@/app/types/UserInfo";
 
 import {jwtToAddress} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
+
+import {generateRandomness} from '@mysten/zklogin';
 
 export default function Page() {
 
@@ -27,14 +29,20 @@ export default function Page() {
                 console.log("iat  = " + decodedJwt.iat);
                 console.log("iss  = " + decodedJwt.iss);
                 console.log("sub = " + decodedJwt.sub);
-                console.log("nonce = " + decodedJwt.nonce);
+                console.log("aud = " + decodedJwt.aud);
+                console.log("exp = " + decodedJwt.exp);
 
-                const userSalt = process.env.NEXT_PUBLIC_USER_SALT!;
+                const userSalt = generateRandomness().toString();
                 console.log("salt =", userSalt);
+
+
                 const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt));
                 console.log("address =", address);
-                console.log("nonce =", decodedJwt.nonce);
+                console.log("salt =", decodedJwt.nonce);
                 console.log("ephemeralPublicKey b64 =", loginData.ephemeralPublicKey);
+
+               // dbClient.hset(loginData.ephemeralPublicKey, { "address" : address});
+              //  dbClient.hset(loginData.ephemeralPublicKey, { "salt" : userSalt});
 
                 const epk : Uint8Array = fromB64(loginData.ephemeralPublicKey);
 
