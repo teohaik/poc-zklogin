@@ -18,7 +18,6 @@ export interface LoginData {
 
 
 export interface PersistentData {
-    nonce: string;
     ephemeralPublicKey: string;
     salt: string;
 }

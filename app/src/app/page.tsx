@@ -36,7 +36,7 @@ export default function Home() {
 
         const dataToStore : PersistentData = {
             ephemeralPublicKey: ephemeralPublicKeyB64,
-            nonce: nonce,
+            salt: nonce,
         };
         axios.post('/api/userinfo/store', dataToStore).then((response) => { console.log("Ephemeral Data Saved.  response = ", response)});
 
