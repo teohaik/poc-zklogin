@@ -2,18 +2,56 @@
 
 import {useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
-import {LoginData, LoginResponse} from "@/app/types/UserInfo";
+import {UserKeyData, LoginResponse, PersistentData} from "@/app/types/UserInfo";
 
-import {jwtToAddress} from '@mysten/zklogin';
+import {getZkSignature, jwtToAddress} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
 
 import {generateRandomness} from '@mysten/zklogin';
+import {useSui} from "@/app/hooks/useSui";
+import {SignatureWithBytes} from "@mysten/sui.js/src/cryptography";
+import {ZkSignature} from "@mysten/zklogin/src/bcs";
+import {Ed25519Keypair} from "@mysten/sui.js/keypairs/ed25519";
+import {TransactionBlock} from '@mysten/sui.js/transactions';
 
 export default function Page() {
 
     const [publicKey, setPublicKey] = useState<string | null>(null);
+
+    const { suiClient } = useSui();
+    async function getSalt( subject: string ) {
+        const dataRequest : PersistentData = {
+            subject: subject
+        }
+        const response = await axios.post('/api/userinfo/get/salt', dataRequest);
+        console.log("getSalt response = ", response);
+        if(response?.data.status == 200) {
+            const userData : PersistentData = response.data.data as PersistentData;
+            console.log("Salt fetched! Salt = ", userData.salt);
+            return userData.salt;
+        } else {
+            console.log("Salt was not created yet! Creating new Salt");
+            return generateRandomness().toString();  //TODO: invoke ML API here.
+        }
+    }
+
+
+    function storeUserKeyData(encodedJwt:string, subject: string, salt: string, userKeyData: UserKeyData) {
+        const dataToStore: PersistentData = {
+            ephemeralPublicKey: userKeyData.ephemeralPublicKey,
+            jwt: encodedJwt,
+            salt: salt,
+            subject: subject
+        };
+        axios.post('/api/userinfo/store', dataToStore)
+            .then((response) => {
+                console.log("response = ", response);
+            }).catch((error) => {
+            console.log("error = ", error);
+        });
+    }
 
     useLayoutEffect(() => {
         try {
@@ -21,7 +59,10 @@ export default function Page() {
             const jwt_token_encoded = hash.get("id_token");
             if (jwt_token_encoded) {
 
-                const loginData: LoginData = JSON.parse(localStorage.getItem("loginData")!);
+                const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+
+                let ephemeralKeyPairArray = Uint8Array.from(Array.from(fromB64(userKeyData.ephemeralPrivateKey!)));
+                const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(ephemeralKeyPairArray);
 
                 const decodedJwt = jwt_decode(jwt_token_encoded!) as LoginResponse;
                 console.log("decodedJwt Object =", decodedJwt)
@@ -31,50 +72,88 @@ export default function Page() {
                 console.log("sub = " + decodedJwt.sub);
                 console.log("aud = " + decodedJwt.aud);
                 console.log("exp = " + decodedJwt.exp);
+                console.log("nonce = " + decodedJwt.nonce);
+                console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
 
-                const userSalt = generateRandomness().toString();
-                console.log("salt =", userSalt);
+                getSalt(decodedJwt.sub).then((userSalt) => {
+
+                    storeUserKeyData(jwt_token_encoded!, decodedJwt.sub, userSalt!, userKeyData);
+                    const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt!));
+                    console.log("address =", address);
+
+                    const ephemeralPublicKeyArray : Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
+
+                    const zkpPayload =
+                        {
+                            jwt: jwt_token_encoded,
+                            extendedEphemeralPublicKey: toBigIntBE(
+                                Buffer.from(ephemeralPublicKeyArray),
+                            ).toString(),
+                            jwtRandomness: userKeyData.randomness,
+                            maxEpoch: userKeyData.maxEpoch,
+                            salt: userSalt,
+                            keyClaimName: "sub"
+                        };
+                    console.log("about to post zkpPayload = ", zkpPayload);
+                    setPublicKey(zkpPayload.extendedEphemeralPublicKey);
+                    axios.post('/api/zkp/get', zkpPayload)
+                        .then((response) => {
+                            console.log("zkp response = ", response.data.zkp);
+                            const partialZkSignature : ZkSignature = response.data.zkp as ZkSignature;
+                            console.log("partialZkSignature = ", partialZkSignature);
+                            const txb = new TransactionBlock();
+
+                            txb.moveCall({
+                                target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,
+                                arguments: [
+                                    txb.pure("Super Axe ZKP 9000"),  // weapon name
+                                    txb.pure(66),  // weapon damage
+                                ],
+                            });
+
+                            txb.sign({
+                                client: suiClient,
+                                signer: ephemeralKeyPair,
+                                onlyTransactionKind: true
+                            }).then((signatureWithBytes : SignatureWithBytes) => {
+                                console.log("Got SignatureWithBytes = ", signatureWithBytes);
+                                console.log("partialZkSignature = ", partialZkSignature);
+                                //print inputs
+                                console.log("inputs = ", partialZkSignature.inputs);
+                                //print maxEpoch
+                                console.log("maxEpoch = ", userKeyData.maxEpoch);
+                                //print userSignature
+                                console.log("userSignature = ", signatureWithBytes.signature);
+
+                                const zkSignature = getZkSignature({
+                                    inputs : partialZkSignature.inputs,
+                                    maxEpoch: userKeyData.maxEpoch,
+                                    userSignature: signatureWithBytes.signature,
+                                });
+                                console.log("Got Zk Signature = ", zkSignature);
+
+                                suiClient.executeTransactionBlock({
+                                    transactionBlock: signatureWithBytes.bytes,
+                                    signature: zkSignature,
+                                    options:{
+                                        showEffects:true
+                                    }
+                                }).then((response) => {
+                                    if(response.effects?.status.status) {
+                                        console.log("Transaction executed! Digest = ", response.digest);
+                                    } else {
+                                        console.log("Transaction failed! response = ", response.effects?.status)
+                                    }
+                                });
+
+                            });
 
 
-                const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt));
-                console.log("address =", address);
-                console.log("salt =", decodedJwt.nonce);
-                console.log("ephemeralPublicKey b64 =", loginData.ephemeralPublicKey);
-
-               // dbClient.hset(loginData.ephemeralPublicKey, { "address" : address});
-              //  dbClient.hset(loginData.ephemeralPublicKey, { "salt" : userSalt});
-
-                const epk : Uint8Array = fromB64(loginData.ephemeralPublicKey);
-
-                const zkpPayload =
-                    {
-                        jwt: jwt_token_encoded,
-                        extendedEphemeralPublicKey: toBigIntBE(
-                            Buffer.from(epk),
-                        ).toString(),
-                        jwtRandomness: loginData.randomness,
-                        maxEpoch: "10",
-                        salt: userSalt,
-                        keyClaimName: "sub"
-                    };
-                console.log("about to post zkpPayload = ", zkpPayload);
-                setPublicKey(zkpPayload.extendedEphemeralPublicKey);
-                axios.post('https://prover.mystenlabs.com/v1', zkpPayload,
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                            'Access-Control-Allow-Origin': '*',
-                            'Access-Control-Allow-Headers': '*',
-                            'Access-Control-Allow-Methods': 'POST'
-                        }
-                    }).then((response) => {
-                    console.log("response = ", response.data);
-                }).catch((error) => {
-                    console.log("error = ", error);
+                        }).catch((error) => {
+                        console.log("error = ", error);
+                    });
                 });
-
             }
-
         } catch (e) {
             console.log("error = ", e)
         }

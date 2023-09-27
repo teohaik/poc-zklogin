@@ -4,9 +4,8 @@ import axios from "axios";
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
-import {LoginData, PersistentData} from "@/app/types/UserInfo";
+import { PersistentData, UserKeyData} from "@/app/types/UserInfo";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
-import {toB64} from "@mysten/bcs";
 
 export default function Home() {
 
@@ -22,37 +21,39 @@ export default function Home() {
     async function prepareLogin() {
         const {epoch, epochDurationMs, epochStartTimestampMs} = await suiClient.getLatestSuiSystemState();
 
+
         const maxEpoch = parseInt(epoch) + 2; // this means the ephemeral key will be active for 2 epochs from now.
         const ephemeralKeyPair = new Ed25519Keypair();
+        const ephemeralPrivateKeyB64 = ephemeralKeyPair.export().privateKey;
+
+
         const ephemeralPublicKey = ephemeralKeyPair.getPublicKey()
+        const ephemeralPublicKeyB64 = ephemeralPublicKey.toBase64();
+
         const jwt_randomness = generateRandomness();
-        const nonce = generateNonce(ephemeralKeyPair.getPublicKey(), maxEpoch, jwt_randomness);
-        const ephemeralPublicKeyB64 = toB64(ephemeralPublicKey.toSuiBytes());
+        const nonce = generateNonce(ephemeralPublicKey, maxEpoch, jwt_randomness);
 
         console.log("epoch = " + epoch);
-        console.log("salt = " + nonce);
+        console.log("nonce = " + nonce);
+        console.log("jwt_randomness = " + jwt_randomness);
         console.log("ephemeral public key = " + ephemeralPublicKey);
-        console.log("ephemeral public key b64 = " + ephemeralPublicKeyB64);
+        console.log("ephemeral address = " + ephemeralKeyPair.toSuiAddress());
 
-        const dataToStore : PersistentData = {
-            ephemeralPublicKey: ephemeralPublicKeyB64,
-            salt: nonce,
-        };
-        axios.post('/api/userinfo/store', dataToStore).then((response) => { console.log("Ephemeral Data Saved.  response = ", response)});
-
-        const loginData: LoginData = {
+        const userKeyData : UserKeyData = {
             randomness: jwt_randomness.toString(),
             nonce: nonce,
-            ephemeralPublicKey: toB64(ephemeralPublicKey.toSuiBytes())
+            ephemeralPublicKey: ephemeralPublicKeyB64,
+            ephemeralPrivateKey: ephemeralPrivateKeyB64,
+            maxEpoch: maxEpoch
         }
-        localStorage.setItem("loginData", JSON.stringify(loginData));
-        return loginData
+        localStorage.setItem("userKeyData", JSON.stringify(userKeyData));
+        return userKeyData
     }
 
 
     useLayoutEffect(() => {
 
-        prepareLogin().then((loginData) => {
+        prepareLogin().then((userKeyData) => {
 
             const REDIRECT_URI = 'https://zklogin-dev-redirect.vercel.app/api/auth';
             const protocol = window.location.protocol;
@@ -70,7 +71,7 @@ export default function Home() {
                 response_type: 'id_token',
                 scope: 'openid',
                 // See below for details about generation of the salt
-                nonce: loginData.nonce,
+                nonce: userKeyData.nonce,
             });
 
             setLoginUrl(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);

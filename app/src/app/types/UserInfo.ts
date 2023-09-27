@@ -10,14 +10,18 @@ export interface LoginResponse {
     nonce: string;
 }
 
-export interface LoginData {
+export interface UserKeyData {
     randomness: string;
     nonce: string;
     ephemeralPublicKey: string;
+    ephemeralPrivateKey: string;
+    maxEpoch:number;
 }
 
 
 export interface PersistentData {
-    ephemeralPublicKey: string;
-    salt: string;
+    ephemeralPublicKey?: string;
+    jwt?:string;
+    salt?: string;
+    subject:string;
 }

@@ -4,21 +4,21 @@ import {PersistentData} from "@/app/types/UserInfo";
 export async function POST(request: NextRequest) {
 
     const body = await request.json();
-
-    console.log("Body received = ", body);
     try {
-        const payload: PersistentData = body as PersistentData;
-        if (payload && payload.ephemeralPublicKey) {
-            console.log("payload = ", payload);
-            const result = await kv.hget(payload.ephemeralPublicKey, "salt");
-            if(result)
-                return NextResponse.json({code:200, message:"OK", data: result } );
+        const dataRequest: PersistentData = body as PersistentData;
+        if (dataRequest && dataRequest.subject) {
+            console.log("Received request for FETCHING Salt for subject ", dataRequest.subject);
+            const result = await kv.get(dataRequest.subject);
+            if(result) {
+                return NextResponse.json({status: 200, statusText: "OK", data: result});
+            }
             else
-                return NextResponse.json({code:404, message: "No data found"});
+                return NextResponse.json({status:404, statusText: "No data found"});
         }
     }catch (e) {
         console.log("Wrong Request Body Format!. Inner error= ",e);
-        return NextResponse.json({code:422, message: "Wrong Body Format!"});
+        return NextResponse.json({status:422, statusText: "Wrong Body Format!"});
     }
-    return NextResponse.json({code:422, message: "Wrong Body Format!"});
+    return NextResponse.json({status:422, statusText: "Wrong Body Format!"});
+
 }
