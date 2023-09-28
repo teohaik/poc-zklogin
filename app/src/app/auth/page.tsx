@@ -55,6 +55,16 @@ export default function Page() {
         });
     }
 
+    function printUsefulInfo(decodedJwt: LoginResponse, userKeyData: UserKeyData) {
+        console.log("iat  = " + decodedJwt.iat);
+        console.log("iss  = " + decodedJwt.iss);
+        console.log("sub = " + decodedJwt.sub);
+        console.log("aud = " + decodedJwt.aud);
+        console.log("exp = " + decodedJwt.exp);
+        console.log("nonce = " + decodedJwt.nonce);
+        console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
+    }
+
     useLayoutEffect(() => {
         try {
             const hash = new URLSearchParams(window.location.hash.slice(1));
@@ -67,21 +77,14 @@ export default function Page() {
                 const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(ephemeralKeyPairArray);
 
                 const decodedJwt = jwt_decode(jwt_token_encoded!) as LoginResponse;
-                console.log("decodedJwt Object =", decodedJwt)
 
-                console.log("iat  = " + decodedJwt.iat);
-                console.log("iss  = " + decodedJwt.iss);
-                console.log("sub = " + decodedJwt.sub);
-                console.log("aud = " + decodedJwt.aud);
-                console.log("exp = " + decodedJwt.exp);
-                console.log("nonce = " + decodedJwt.nonce);
-                console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
+                printUsefulInfo(decodedJwt, userKeyData);
 
                 getSalt(decodedJwt.sub).then((userSalt) => {
 
                     storeUserKeyData(jwt_token_encoded!, decodedJwt.sub, userSalt!, userKeyData);
                     const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt!));
-                    console.log("address =", address);
+                    console.log("ZK Address =", address);
 
                     const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
 
@@ -106,9 +109,9 @@ export default function Page() {
                             const txb = new TransactionBlock();
 
                             txb.moveCall({
-                                target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,
+                                target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,  //demo package published on testnet
                                 arguments: [
-                                    txb.pure("Super Axe ZKP 9000"),  // weapon name
+                                    txb.pure("Zero Knowledge Proof Axe 9000"),  // weapon name
                                     txb.pure(66),  // weapon damage
                                 ],
                             });
@@ -119,11 +122,7 @@ export default function Page() {
                                 signer: ephemeralKeyPair
                             }).then((signatureWithBytes: SignatureWithBytes) => {
                                 console.log("Got SignatureWithBytes = ", signatureWithBytes);
-
-                                console.log("inputs = ", partialZkSignature);
-                                //print maxEpoch
                                 console.log("maxEpoch = ", userKeyData.maxEpoch);
-                                //print userSignature
                                 console.log("userSignature = ", signatureWithBytes.signature);
 
                                 const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud).toString();
@@ -131,14 +130,11 @@ export default function Page() {
                                     ...partialZkSignature,
                                     addressSeed: addressSeed,
                                 }
-                                console.log("zkSigInputs = ", zkSigInputs);
                                 const zkSignature: SerializedSignature = getZkSignature({
                                     inputs: zkSigInputs,
                                     maxEpoch: userKeyData.maxEpoch,
                                     userSignature: signatureWithBytes.signature,
                                 });
-
-                                console.log("Got Zk Signature = ", zkSignature);
 
                                 suiClient.executeTransactionBlock({
                                     transactionBlock: signatureWithBytes.bytes,
@@ -153,6 +149,8 @@ export default function Page() {
                                     } else {
                                         console.log("Transaction failed! reason = ", response.effects?.status)
                                     }
+                                }).catch((error) => {
+                                    console.log("Error During Tx Execution. Details: ", error);
                                 });
                             });
                         }).catch((error) => {
@@ -174,8 +172,9 @@ export default function Page() {
             </div>
 
             {txDigest?.length>0 ? (
-                <div>
-                    <div id="contents" className="font-medium pb-6">
+                <div className="flex flex-col items-center mt-10">
+                    <h3>Transaction Completed!</h3>
+                    <div id="contents" className="font-medium pb-6 pt-6">
                         <p>TxDigest = {txDigest}</p>
                     </div>
                     <div id="contents" className="font-medium pb-6">
