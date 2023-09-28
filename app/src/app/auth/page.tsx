@@ -4,14 +4,14 @@ import {useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
 import {UserKeyData, LoginResponse, PersistentData} from "@/app/types/UserInfo";
 
-import {getZkSignature, jwtToAddress} from '@mysten/zklogin';
+import {genAddressSeed, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
 
 import {generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
-import {SignatureWithBytes} from "@mysten/sui.js/src/cryptography";
+import {SerializedSignature, SignatureWithBytes} from "@mysten/sui.js/src/cryptography";
 import {ZkSignature} from "@mysten/zklogin/src/bcs";
 import {Ed25519Keypair} from "@mysten/sui.js/keypairs/ed25519";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
@@ -19,16 +19,18 @@ import {TransactionBlock} from '@mysten/sui.js/transactions';
 export default function Page() {
 
     const [publicKey, setPublicKey] = useState<string | null>(null);
+    const [txDigest, setTxDigest] = useState<string>("");
 
-    const { suiClient } = useSui();
-    async function getSalt( subject: string ) {
-        const dataRequest : PersistentData = {
+    const {suiClient} = useSui();
+
+    async function getSalt(subject: string) {
+        const dataRequest: PersistentData = {
             subject: subject
         }
         const response = await axios.post('/api/userinfo/get/salt', dataRequest);
         console.log("getSalt response = ", response);
-        if(response?.data.status == 200) {
-            const userData : PersistentData = response.data.data as PersistentData;
+        if (response?.data.status == 200) {
+            const userData: PersistentData = response.data.data as PersistentData;
             console.log("Salt fetched! Salt = ", userData.salt);
             return userData.salt;
         } else {
@@ -38,7 +40,7 @@ export default function Page() {
     }
 
 
-    function storeUserKeyData(encodedJwt:string, subject: string, salt: string, userKeyData: UserKeyData) {
+    function storeUserKeyData(encodedJwt: string, subject: string, salt: string, userKeyData: UserKeyData) {
         const dataToStore: PersistentData = {
             ephemeralPublicKey: userKeyData.ephemeralPublicKey,
             jwt: encodedJwt,
@@ -81,7 +83,7 @@ export default function Page() {
                     const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt!));
                     console.log("address =", address);
 
-                    const ephemeralPublicKeyArray : Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
+                    const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
 
                     const zkpPayload =
                         {
@@ -99,7 +101,7 @@ export default function Page() {
                     axios.post('/api/zkp/get', zkpPayload)
                         .then((response) => {
                             console.log("zkp response = ", response.data.zkp);
-                            const partialZkSignature : ZkSignature = response.data.zkp as ZkSignature;
+                            const partialZkSignature: ZkSignatureInputs = response.data.zkp as ZkSignatureInputs;
                             console.log("partialZkSignature = ", partialZkSignature);
                             const txb = new TransactionBlock();
 
@@ -110,45 +112,49 @@ export default function Page() {
                                     txb.pure(66),  // weapon damage
                                 ],
                             });
-
+                            txb.setGasBudget(100000000);
+                            txb.setSender(address);
                             txb.sign({
                                 client: suiClient,
-                                signer: ephemeralKeyPair,
-                                onlyTransactionKind: true
-                            }).then((signatureWithBytes : SignatureWithBytes) => {
+                                signer: ephemeralKeyPair
+                            }).then((signatureWithBytes: SignatureWithBytes) => {
                                 console.log("Got SignatureWithBytes = ", signatureWithBytes);
-                                console.log("partialZkSignature = ", partialZkSignature);
-                                //print inputs
-                                console.log("inputs = ", partialZkSignature.inputs);
+
+                                console.log("inputs = ", partialZkSignature);
                                 //print maxEpoch
                                 console.log("maxEpoch = ", userKeyData.maxEpoch);
                                 //print userSignature
                                 console.log("userSignature = ", signatureWithBytes.signature);
 
-                                const zkSignature = getZkSignature({
-                                    inputs : partialZkSignature.inputs,
+                                const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud).toString();
+                                const zkSigInputs: ZkSignatureInputs = {
+                                    ...partialZkSignature,
+                                    addressSeed: addressSeed,
+                                }
+                                console.log("zkSigInputs = ", zkSigInputs);
+                                const zkSignature: SerializedSignature = getZkSignature({
+                                    inputs: zkSigInputs,
                                     maxEpoch: userKeyData.maxEpoch,
                                     userSignature: signatureWithBytes.signature,
                                 });
+
                                 console.log("Got Zk Signature = ", zkSignature);
 
                                 suiClient.executeTransactionBlock({
                                     transactionBlock: signatureWithBytes.bytes,
                                     signature: zkSignature,
-                                    options:{
-                                        showEffects:true
+                                    options: {
+                                        showEffects: true
                                     }
                                 }).then((response) => {
-                                    if(response.effects?.status.status) {
+                                    if (response.effects?.status.status) {
                                         console.log("Transaction executed! Digest = ", response.digest);
+                                        setTxDigest(response.digest);
                                     } else {
-                                        console.log("Transaction failed! response = ", response.effects?.status)
+                                        console.log("Transaction failed! reason = ", response.effects?.status)
                                     }
                                 });
-
                             });
-
-
                         }).catch((error) => {
                         console.log("error = ", error);
                     });
@@ -163,14 +169,26 @@ export default function Page() {
         <div id="cb" className="flex flex-col items-center mt-10">
             <h1>Callback page</h1>
 
-                <div id="header" className="pb-5 pt-6">
-                    <h4>Login with External Provider Completed</h4>
-                </div>
+            <div id="header" className="pb-5 pt-6">
+                <h4>Login with External Provider Completed</h4>
+            </div>
 
-                <div id="contents" className="font-medium pb-6">
-                    <p>ZKP Ephemeral Public Key  =  {publicKey}</p>
+            {txDigest?.length>0 ? (
+                <div>
+                    <div id="contents" className="font-medium pb-6">
+                        <p>TxDigest = {txDigest}</p>
+                    </div>
+                    <div id="contents" className="font-medium pb-6">
+                        <a href={`https://suiexplorer.com/txblock/${txDigest}?network=testnet`}
+                           className="hover:text-blue-600"
+                           target="_blank">
+                            Link on Explorer
+                        </a>
+                    </div>
                 </div>
-
+            ):
+                null
+            }
         </div>
     );
 }
