@@ -188,7 +188,7 @@ export default function Page() {
         const tx = new TransactionBlock();
         const giftCoin = tx.splitCoins(tx.gas, [tx.pure(3000000000)]);
 
-        tx.transferObjects(giftCoin, tx.pure(address));
+        tx.transferObjects([giftCoin], tx.pure(address));
 
         const res = await suiClient.signAndExecuteTransactionBlock({
             transactionBlock: tx,
