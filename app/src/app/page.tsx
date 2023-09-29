@@ -89,7 +89,7 @@ export default function Home() {
 
         <div>
             <div className="text-3xl font-bold pb-6">
-                <h3>This is the page about zk Login Demo</h3>
+                <h3>Welcome to the ZK Login Demo Page!</h3>
             </div>
 
             <div className="flex mt-4 mb-10 space-x-4 justify-center">
