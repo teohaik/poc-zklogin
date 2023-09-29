@@ -118,9 +118,11 @@ export default function Page() {
                 setTransactionInProgress(false);
             } else {
                 console.log("Transaction failed! reason = ", response.effects?.status)
+                setTransactionInProgress(false);
             }
         }).catch((error) => {
             console.log("Error During Tx Execution. Details: ", error);
+            setTransactionInProgress(false);
         });
     }
 
@@ -170,7 +172,7 @@ export default function Page() {
     }
 
     async function checkIfAddressHasBalance(address: string): Promise<boolean> {
-        console.log("Checking whether address " + address + "has balance...");
+        console.log("Checking whether address " + address + " has balance...");
         const coins = await suiClient.getCoins({
             owner: address,
         });
@@ -187,6 +189,7 @@ export default function Page() {
 
     async function giveSomeTestCoins(address: string) {
         console.log("Giving some test coins to address " + address);
+        setTransactionInProgress(true);
         let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY!)));
         const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
         const tx = new TransactionBlock();
@@ -206,9 +209,11 @@ export default function Page() {
         if (status === "success") {
             console.log("Gift Coin transfer executed! status = ", status);
             checkIfAddressHasBalance(address);
+            setTransactionInProgress(false);
         }
         if (status == "failure") {
             console.log("Gift Coin transfer Failed. Error = ", res?.effects);
+            setTransactionInProgress(false);
         }
     }
 
