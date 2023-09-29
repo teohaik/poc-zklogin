@@ -4,7 +4,6 @@ import {PersistentData} from "@/app/types/UserInfo";
 export async function POST(request: NextRequest) {
 
     const body = await request.json();
-    console.log("Body received = ", body);
     try {
         const payload: PersistentData = body as PersistentData;
         if (payload && payload.ephemeralPublicKey && payload.subject && payload.salt) {

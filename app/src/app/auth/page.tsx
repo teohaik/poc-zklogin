@@ -19,7 +19,11 @@ import {TransactionBlock} from '@mysten/sui.js/transactions';
 export default function Page() {
 
     const [publicKey, setPublicKey] = useState<string | null>(null);
-    const [txDigest, setTxDigest] = useState<string>("");
+    const [txDigest, setTxDigest] = useState<string | null>(null);
+    const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
+    const [userAddress, setUserAddress] = useState<string | null>(null);
+    const [userSalt, setUserSalt] = useState<string | null>(null);
+    const [userBalance, setUserBalance] = useState<number>(0);
 
     const {suiClient} = useSui();
 
@@ -39,8 +43,8 @@ export default function Page() {
         }
     }
 
-
-    function storeUserKeyData(encodedJwt: string, subject: string, salt: string, userKeyData: UserKeyData) {
+    function storeUserKeyData(encodedJwt: string, subject: string, salt: string,) {
+        const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
         const dataToStore: PersistentData = {
             ephemeralPublicKey: userKeyData.ephemeralPublicKey,
             jwt: encodedJwt,
@@ -65,102 +69,175 @@ export default function Page() {
         console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
     }
 
-    useLayoutEffect(() => {
-        try {
-            const hash = new URLSearchParams(window.location.hash.slice(1));
-            const jwt_token_encoded = hash.get("id_token");
-            if (jwt_token_encoded) {
+    async function getZkProofAndExecuteTx() {
 
-                const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+        const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
+        const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
 
-                let ephemeralKeyPairArray = Uint8Array.from(Array.from(fromB64(userKeyData.ephemeralPrivateKey!)));
-                const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(ephemeralKeyPairArray);
+        printUsefulInfo(decodedJwt, userKeyData);
 
-                const decodedJwt = jwt_decode(jwt_token_encoded!) as LoginResponse;
+        const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
 
-                printUsefulInfo(decodedJwt, userKeyData);
+        const zkpPayload =
+            {
+                jwt: jwtEncoded!,
+                extendedEphemeralPublicKey: toBigIntBE(
+                    Buffer.from(ephemeralPublicKeyArray),
+                ).toString(),
+                jwtRandomness: userKeyData.randomness,
+                maxEpoch: userKeyData.maxEpoch,
+                salt: userSalt,
+                keyClaimName: "sub"
+            };
 
-                getSalt(decodedJwt.sub).then((userSalt) => {
+        console.log("about to post zkpPayload = ", zkpPayload);
+        setPublicKey(zkpPayload.extendedEphemeralPublicKey);
 
-                    storeUserKeyData(jwt_token_encoded!, decodedJwt.sub, userSalt!, userKeyData);
-                    const address = jwtToAddress(jwt_token_encoded!, BigInt(userSalt!));
-                    console.log("ZK Address =", address);
+        const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
 
-                    const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
+        console.log("zkp response = ", proofResponse.data.zkp);
+        const partialZkSignature: ZkSignatureInputs = proofResponse.data.zkp as ZkSignatureInputs;
+        console.log("partialZkSignature = ", partialZkSignature);
+        const txb = new TransactionBlock();
 
-                    const zkpPayload =
-                        {
-                            jwt: jwt_token_encoded,
-                            extendedEphemeralPublicKey: toBigIntBE(
-                                Buffer.from(ephemeralPublicKeyArray),
-                            ).toString(),
-                            jwtRandomness: userKeyData.randomness,
-                            maxEpoch: userKeyData.maxEpoch,
-                            salt: userSalt,
-                            keyClaimName: "sub"
-                        };
-                    console.log("about to post zkpPayload = ", zkpPayload);
-                    setPublicKey(zkpPayload.extendedEphemeralPublicKey);
-                    axios.post('/api/zkp/get', zkpPayload)
-                        .then((response) => {
-                            console.log("zkp response = ", response.data.zkp);
-                            const partialZkSignature: ZkSignatureInputs = response.data.zkp as ZkSignatureInputs;
-                            console.log("partialZkSignature = ", partialZkSignature);
-                            const txb = new TransactionBlock();
+        txb.moveCall({
+            target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,  //demo package published on testnet
+            arguments: [
+                txb.pure("Zero Knowledge Proof Axe 9000"),  // weapon name
+                txb.pure(66),  // weapon damage
+            ],
+        });
+        txb.setSender(userAddress!);
 
-                            txb.moveCall({
-                                target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,  //demo package published on testnet
-                                arguments: [
-                                    txb.pure("Zero Knowledge Proof Axe 9000"),  // weapon name
-                                    txb.pure(66),  // weapon damage
-                                ],
-                            });
-                            txb.setGasBudget(100000000);
-                            txb.setSender(address);
-                            txb.sign({
-                                client: suiClient,
-                                signer: ephemeralKeyPair
-                            }).then((signatureWithBytes: SignatureWithBytes) => {
-                                console.log("Got SignatureWithBytes = ", signatureWithBytes);
-                                console.log("maxEpoch = ", userKeyData.maxEpoch);
-                                console.log("userSignature = ", signatureWithBytes.signature);
+        const signatureWithBytes = await txb.sign({client: suiClient, signer: ephemeralKeyPair});
 
-                                const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud).toString();
-                                const zkSigInputs: ZkSignatureInputs = {
-                                    ...partialZkSignature,
-                                    addressSeed: addressSeed,
-                                }
-                                const zkSignature: SerializedSignature = getZkSignature({
-                                    inputs: zkSigInputs,
-                                    maxEpoch: userKeyData.maxEpoch,
-                                    userSignature: signatureWithBytes.signature,
-                                });
+        console.log("Got SignatureWithBytes = ", signatureWithBytes);
+        console.log("maxEpoch = ", userKeyData.maxEpoch);
+        console.log("userSignature = ", signatureWithBytes.signature);
 
-                                suiClient.executeTransactionBlock({
-                                    transactionBlock: signatureWithBytes.bytes,
-                                    signature: zkSignature,
-                                    options: {
-                                        showEffects: true
-                                    }
-                                }).then((response) => {
-                                    if (response.effects?.status.status) {
-                                        console.log("Transaction executed! Digest = ", response.digest);
-                                        setTxDigest(response.digest);
-                                    } else {
-                                        console.log("Transaction failed! reason = ", response.effects?.status)
-                                    }
-                                }).catch((error) => {
-                                    console.log("Error During Tx Execution. Details: ", error);
-                                });
-                            });
-                        }).catch((error) => {
-                        console.log("error = ", error);
-                    });
-                });
+        const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud);
+
+        const zkSignature: SerializedSignature = getZkSignature({
+            inputs: {
+                ...partialZkSignature,
+                addressSeed: addressSeed.toString(),
+            },
+            maxEpoch: userKeyData.maxEpoch,
+            userSignature: signatureWithBytes.signature,
+        });
+
+        suiClient.executeTransactionBlock({
+            transactionBlock: signatureWithBytes.bytes,
+            signature: zkSignature,
+            options: {
+                showEffects: true
             }
-        } catch (e) {
-            console.log("error = ", e)
+        }).then((response) => {
+            if (response.effects?.status.status) {
+                console.log("Transaction executed! Digest = ", response.digest);
+                setTxDigest(response.digest);
+            } else {
+                console.log("Transaction failed! reason = ", response.effects?.status)
+            }
+        }).catch((error) => {
+            console.log("Error During Tx Execution. Details: ", error);
+        });
+
+    }
+
+    function getEphemeralKeyPair() {
+        const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+        let ephemeralKeyPairArray = Uint8Array.from(Array.from(fromB64(userKeyData.ephemeralPrivateKey!)));
+        const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(ephemeralKeyPairArray);
+        return {userKeyData, ephemeralKeyPair};
+    }
+
+    async function checkIfAddressHasBalance(address: string): Promise<boolean> {
+        console.log("Checking whether address " + address + "has balance...");
+        const coins = await suiClient.getCoins({
+            owner: address,
+        });
+        //loop over coins
+        let totalBalance = 0;
+        for (const coin of coins.data) {
+            totalBalance += parseInt(coin.balance);
         }
+        totalBalance = totalBalance / 1000000000;
+        setUserBalance(totalBalance);
+        console.log("total balance = ", totalBalance);
+        return totalBalance > 0;
+    }
+
+    async function giveSomeTestCoins(address: string) {
+        console.log("Giving some test coins to address " + address);
+        let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.ADMIN_SECRET_KEY!)));
+        const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
+        const tx = new TransactionBlock();
+        const giftCoin = tx.splitCoins(tx.gas, [tx.pure(3000000000)]);
+
+        tx.transferObjects(giftCoin, tx.pure(address));
+
+        const res = await suiClient.signAndExecuteTransactionBlock({
+            transactionBlock: tx,
+            signer: adminKeypair,
+            requestType: "WaitForLocalExecution",
+            options: {
+                showEffects: true,
+            },
+        });
+        const status = res?.effects?.status?.status;
+        if (status === "success") {
+            console.log("Gift Coin transfer executed! status = ", status);
+            checkIfAddressHasBalance(address);
+        }
+        if (status == "failure") {
+            console.log("Gift Coin transfer Failed. Error = ", res?.effects);
+        }
+    }
+
+    async function loadRequiredData(encodedJwt: string) {
+
+        //Decoding JWT to get useful Info
+        const decodedJwt: LoginResponse = jwt_decode(encodedJwt!) as LoginResponse;
+
+        //Getting Salt
+        const userSalt = await getSalt(decodedJwt.sub);
+
+        //Storing UserKeyData
+        storeUserKeyData(encodedJwt!, decodedJwt.sub, userSalt!);
+
+        //Generating User Address
+        const address = jwtToAddress(encodedJwt!, BigInt(userSalt!));
+
+        setUserAddress(address);
+        setUserSalt(userSalt!);
+
+        checkIfAddressHasBalance(address);
+
+        console.log("All required data loaded. ZK Address =", address);
+    }
+
+    useLayoutEffect(() => {
+
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const jwt_token_encoded = hash.get("id_token");
+
+        const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
+
+        if (!jwt_token_encoded) {
+            console.log("Could not retrieve a valid JWT Token!");
+            return;
+        }
+
+        if (!userKeyData) {
+            console.log("userKeyData is null");
+            return;
+        }
+
+        setJwtEncoded(jwt_token_encoded);
+
+        loadRequiredData(jwt_token_encoded);
+
     }, []);
 
     return (
@@ -171,21 +248,59 @@ export default function Page() {
                 <h4>Login with External Provider Completed</h4>
             </div>
 
-            {txDigest?.length>0 ? (
-                <div className="flex flex-col items-center mt-10">
-                    <h3>Transaction Completed!</h3>
-                    <div id="contents" className="font-medium pb-6 pt-6">
-                        <p>TxDigest = {txDigest}</p>
+            {userAddress ? (
+                    <div className="flex flex-col items-center mt-10">
+                        <h3>Address Generation Completed!</h3>
+                        <div id="contents" className="font-medium pb-6 pt-6">
+                            <p>User Address = {userAddress}</p>
+                        </div>
+                        <div id="contents" className="font-medium pb-6 pt-6">
+                            <p>Address Balance = {userBalance.toFixed(2)} SUI</p>
+                            {userBalance == 0 ? (
+                                <div>
+                                    <p>You may need some coins!</p>
+                                    <button
+                                        className="bg-green-500 text-white px-4 py-2 rounded-md"
+                                        disabled={!userAddress}
+                                        onClick={() => giveSomeTestCoins(userAddress!)}
+                                    >
+                                        Give me some coins please!
+                                    </button>
+                                </div>
+
+                            ) : null}
+                        </div>
+                        {userBalance > 0 ? (
+                            <div id="contents" className="font-medium pb-6">
+                                <button
+                                    className="bg-green-500 text-white px-4 py-2 rounded-md"
+                                    disabled={!userAddress}
+                                    onClick={() => getZkProofAndExecuteTx()}
+                                >
+                                    Get ZKP Proof and Execute Transaction
+                                </button>
+                            </div>
+                        ) : null}
                     </div>
-                    <div id="contents" className="font-medium pb-6">
-                        <a href={`https://suiexplorer.com/txblock/${txDigest}?network=testnet`}
-                           className="hover:text-blue-600"
-                           target="_blank">
-                            Link on Explorer
-                        </a>
+                ) :
+                null
+            }
+
+            {txDigest ? (
+                    <div className="flex flex-col items-center mt-10">
+                        <h3>Transaction Completed!</h3>
+                        <div id="contents" className="font-medium pb-6 pt-6">
+                            <p>TxDigest = {txDigest}</p>
+                        </div>
+                        <div id="contents" className="font-medium pb-6">
+                            <a href={`https://suiexplorer.com/txblock/${txDigest}?network=testnet`}
+                               className="hover:text-blue-600"
+                               target="_blank">
+                                Link on Explorer
+                            </a>
+                        </div>
                     </div>
-                </div>
-            ):
+                ) :
                 null
             }
         </div>
