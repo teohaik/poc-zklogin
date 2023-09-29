@@ -186,7 +186,7 @@ export default function Page() {
         let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY!)));
         const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
         const tx = new TransactionBlock();
-        const giftCoin = tx.splitCoins(tx.gas, [tx.pure(3000000)]);
+        const giftCoin = tx.splitCoins(tx.gas, [tx.pure(30000000)]);
 
         tx.transferObjects([giftCoin], tx.pure(address));
 
@@ -268,7 +268,7 @@ export default function Page() {
                             <p>User Address = {userAddress}</p>
                         </div>
                         <div id="contents" className="font-medium pb-6 pt-6">
-                            <p>Address Balance = {userBalance.toFixed(2)} SUI</p>
+                            <p>Address Balance = {userBalance.toFixed(3)} SUI</p>
                             {userBalance == 0 ? (
                                 <div>
                                     <p>You may need some coins!</p>
