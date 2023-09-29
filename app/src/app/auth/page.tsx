@@ -30,8 +30,10 @@ export default function Page() {
 
     async function getSalt(subject: string) {
         const dataRequest: PersistentData = {
-            subject: subject
+            subject: subject,
+            jwt: jwtEncoded!
         }
+        console.log("Subject = ", subject);
         const response = await axios.post('/api/userinfo/get/salt', dataRequest);
         console.log("getSalt response = ", response);
         if (response?.data.status == 200) {
@@ -236,7 +238,7 @@ export default function Page() {
     }
 
     useLayoutEffect(() => {
-
+        setError(null);
         const hash = new URLSearchParams(window.location.hash.slice(1));
         const jwt_token_encoded = hash.get("id_token");
 

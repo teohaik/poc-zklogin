@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
             console.log("Received request for FETCHING Salt for subject ", dataRequest.subject);
             let response = await kv.get(dataRequest.subject);
             if(!response) {
-                console.log("Salt not found in KV store. Fetching from Mysten API");
+                console.log("Salt not found in KV store. Fetching from Mysten API. jwt = ", dataRequest.jwt);
                 const saltFromMysten = await getSaltFromMystenAPI(dataRequest.jwt!);
                 response = {subject: dataRequest.subject, salt: saltFromMysten} ;
+                console.log("response from mysten = ", response);
             }
             return NextResponse.json({status: 200, statusText: "OK", data: response});
         }
