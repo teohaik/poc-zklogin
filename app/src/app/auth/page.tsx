@@ -269,7 +269,7 @@ export default function Page() {
                         </div>
                         <div id="contents" className="font-medium pb-6 pt-6">
                             <p>Address Balance = {userBalance.toFixed(3)} SUI</p>
-                            {userBalance == 0 ? (
+                            {userBalance < 0.04 ? (
                                 <div>
                                     <p>You may need some coins!</p>
                                     <button
