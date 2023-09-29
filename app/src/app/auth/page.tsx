@@ -16,6 +16,7 @@ import {Blocks} from 'react-loader-spinner'
 
 export default function Page() {
 
+    const [error, setError] = useState<string | null>(null);
     const [publicKey, setPublicKey] = useState<string | null>(null);
     const [txDigest, setTxDigest] = useState<string | null>(null);
     const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
@@ -25,6 +26,7 @@ export default function Page() {
     const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
 
     const {suiClient} = useSui();
+
 
     async function getSalt(subject: string) {
         const dataRequest: PersistentData = {
@@ -37,8 +39,8 @@ export default function Page() {
             console.log("Salt fetched! Salt = ", userData.salt);
             return userData.salt;
         } else {
-            console.log("Salt was not created yet! Creating new Salt");
-            return generateRandomness().toString();  //TODO: invoke ML API here.
+            console.log("Error Getting SALT");
+            return null;
         }
     }
 
@@ -209,13 +211,16 @@ export default function Page() {
     }
 
     async function loadRequiredData(encodedJwt: string) {
-
         //Decoding JWT to get useful Info
         const decodedJwt: LoginResponse = jwt_decode(encodedJwt!) as LoginResponse;
 
         //Getting Salt
         const userSalt = await getSalt(decodedJwt.sub);
-
+        if(!userSalt){
+            console.log("Error getting userSalt");
+            setError("Error getting userSalt");
+            return;
+        }
         //Storing UserKeyData
         storeUserKeyData(encodedJwt!, decodedJwt.sub, userSalt!);
 
@@ -238,11 +243,13 @@ export default function Page() {
         const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
 
         if (!jwt_token_encoded) {
+            setError("Could not retrieve a valid JWT Token!")
             console.log("Could not retrieve a valid JWT Token!");
             return;
         }
 
         if (!userKeyData) {
+            setError("user Data is null");
             console.log("userKeyData is null");
             return;
         }
@@ -329,6 +336,13 @@ export default function Page() {
                         wrapperStyle={{}}
                         wrapperClass="blocks-wrapper"
                     />
+                </div>
+
+            ): null}
+
+            {error ? (
+                <div id="header" className="pb-5 pt-6 text-red-500 text-xl">
+                    <h2>{error}</h2>
                 </div>
 
             ): null}
