@@ -183,7 +183,7 @@ export default function Page() {
 
     async function giveSomeTestCoins(address: string) {
         console.log("Giving some test coins to address " + address);
-        let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.ADMIN_SECRET_KEY!)));
+        let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY!)));
         const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
         const tx = new TransactionBlock();
         const giftCoin = tx.splitCoins(tx.gas, [tx.pure(3000000000)]);
