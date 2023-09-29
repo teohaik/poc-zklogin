@@ -2,19 +2,17 @@
 
 import {useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
-import {UserKeyData, LoginResponse, PersistentData} from "@/app/types/UserInfo";
+import {LoginResponse, PersistentData, UserKeyData} from "@/app/types/UserInfo";
 
-import {genAddressSeed, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
+import {genAddressSeed, generateRandomness, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
-
-import {generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
-import {SerializedSignature, SignatureWithBytes} from "@mysten/sui.js/src/cryptography";
-import {ZkSignature} from "@mysten/zklogin/src/bcs";
+import {SerializedSignature} from "@mysten/sui.js/src/cryptography";
 import {Ed25519Keypair} from "@mysten/sui.js/keypairs/ed25519";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
+import {Blocks} from 'react-loader-spinner'
 
 export default function Page() {
 
@@ -24,6 +22,7 @@ export default function Page() {
     const [userAddress, setUserAddress] = useState<string | null>(null);
     const [userSalt, setUserSalt] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState<number>(0);
+    const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
 
     const {suiClient} = useSui();
 
@@ -112,6 +111,7 @@ export default function Page() {
             if (response.effects?.status.status) {
                 console.log("Transaction executed! Digest = ", response.digest);
                 setTxDigest(response.digest);
+                setTransactionInProgress(false);
             } else {
                 console.log("Transaction failed! reason = ", response.effects?.status)
             }
@@ -122,7 +122,7 @@ export default function Page() {
 
 
     async function getZkProofAndExecuteTx() {
-
+        setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
 
@@ -286,7 +286,7 @@ export default function Page() {
                         {userBalance > 0 ? (
                             <div id="contents" className="font-medium pb-6">
                                 <button
-                                    className="bg-green-500 text-white px-4 py-2 rounded-md"
+                                    className="bg-gray-400 text-white px-4 py-2 rounded-md"
                                     disabled={!userAddress}
                                     onClick={() => getZkProofAndExecuteTx()}
                                 >
@@ -306,16 +306,32 @@ export default function Page() {
                             <p>TxDigest = {txDigest}</p>
                         </div>
                         <div id="contents" className="font-medium pb-6">
-                            <a href={`https://suiexplorer.com/txblock/${txDigest}?network=testnet`}
-                               className="hover:text-blue-600"
-                               target="_blank">
-                                Link on Explorer
-                            </a>
+                            <button
+                                className="bg-gray-400 text-white px-4 py-2 rounded-md"
+                                disabled={!userAddress}
+                                onClick={() => window.open(`https://suiexplorer.com/txblock/${txDigest}?network=testnet`, "_blank")}
+                            >
+                                See it on Sui Explorer
+                            </button>
                         </div>
                     </div>
                 ) :
                 null
             }
+
+            {transactionInProgress ? (
+                <div className="flex space-x-4 justify-center">
+                    <Blocks
+                        visible={true}
+                        height="80"
+                        width="80"
+                        ariaLabel="blocks-loading"
+                        wrapperStyle={{}}
+                        wrapperClass="blocks-wrapper"
+                    />
+                </div>
+
+            ): null}
         </div>
     );
 }
