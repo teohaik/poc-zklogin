@@ -69,37 +69,13 @@ export default function Page() {
         console.log("ephemeralPublicKey b64 =", userKeyData.ephemeralPublicKey);
     }
 
-    async function getZkProofAndExecuteTx() {
 
-        const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
-        const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
+    async function executeTransactionWithZKP(partialZkSignature :ZkSignatureInputs, ephemeralKeyPair: Ed25519Keypair, userKeyData: UserKeyData, decodedJwt: LoginResponse) {
 
-        printUsefulInfo(decodedJwt, userKeyData);
-
-        const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
-
-        const zkpPayload =
-            {
-                jwt: jwtEncoded!,
-                extendedEphemeralPublicKey: toBigIntBE(
-                    Buffer.from(ephemeralPublicKeyArray),
-                ).toString(),
-                jwtRandomness: userKeyData.randomness,
-                maxEpoch: userKeyData.maxEpoch,
-                salt: userSalt,
-                keyClaimName: "sub"
-            };
-
-        console.log("about to post zkpPayload = ", zkpPayload);
-        setPublicKey(zkpPayload.extendedEphemeralPublicKey);
-
-        const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
-
-        console.log("zkp response = ", proofResponse.data.zkp);
-        const partialZkSignature: ZkSignatureInputs = proofResponse.data.zkp as ZkSignatureInputs;
         console.log("partialZkSignature = ", partialZkSignature);
         const txb = new TransactionBlock();
 
+        //Just a simple Demo call to create a little NFT weapon :p
         txb.moveCall({
             target: `0xf8294cd69d69d867c5a187a60e7095711ba237fad6718ea371bf4fbafbc5bb4b::teotest::create_weapon`,  //demo package published on testnet
             arguments: [
@@ -142,8 +118,45 @@ export default function Page() {
         }).catch((error) => {
             console.log("Error During Tx Execution. Details: ", error);
         });
-
     }
+
+
+    async function getZkProofAndExecuteTx() {
+
+        const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
+        const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
+
+        printUsefulInfo(decodedJwt, userKeyData);
+
+        const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
+
+        const zkpPayload =
+            {
+                jwt: jwtEncoded!,
+                extendedEphemeralPublicKey: toBigIntBE(
+                    Buffer.from(ephemeralPublicKeyArray),
+                ).toString(),
+                jwtRandomness: userKeyData.randomness,
+                maxEpoch: userKeyData.maxEpoch,
+                salt: userSalt,
+                keyClaimName: "sub"
+            };
+
+        console.log("about to post zkpPayload = ", zkpPayload);
+        setPublicKey(zkpPayload.extendedEphemeralPublicKey);
+
+        //Invoking our custom backend to delagate Proof Request to Mysten backend.
+        // Delegation was done to avoid CORS errors.
+        //TODO: Store proof to avoid fetching it every time.
+        const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
+
+        console.log("zkp response = ", proofResponse.data.zkp);
+
+        const partialZkSignature: ZkSignatureInputs = proofResponse.data.zkp as ZkSignatureInputs;
+
+        await executeTransactionWithZKP(partialZkSignature, ephemeralKeyPair, userKeyData, decodedJwt);
+    }
+
 
     function getEphemeralKeyPair() {
         const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
