@@ -28,10 +28,10 @@ export default function Page() {
     const {suiClient} = useSui();
 
 
-    async function getSalt(subject: string) {
+    async function getSalt(subject: string, encodedJwt: string) {
         const dataRequest: PersistentData = {
             subject: subject,
-            jwt: jwtEncoded!
+            jwt: encodedJwt!
         }
         console.log("Subject = ", subject);
         const response = await axios.post('/api/userinfo/get/salt', dataRequest);
@@ -217,7 +217,7 @@ export default function Page() {
         const decodedJwt: LoginResponse = jwt_decode(encodedJwt!) as LoginResponse;
 
         //Getting Salt
-        const userSalt = await getSalt(decodedJwt.sub);
+        const userSalt = await getSalt(decodedJwt.sub, encodedJwt);
         if(!userSalt){
             console.log("Error getting userSalt");
             setError("Error getting userSalt");
