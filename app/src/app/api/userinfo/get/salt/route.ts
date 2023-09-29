@@ -18,9 +18,8 @@ export async function POST(request: NextRequest) {
         }
     }catch (e) {
         console.log("Wrong Request Body Format!. Inner error= ",e);
-        return NextResponse.json({status:422, statusText: "Wrong Body Format!"});
+        return NextResponse.json({status:422, statusText: "Wrong Body Format!. Inner Error= "+e, data: ""});
     }
-    return NextResponse.json({status:422, statusText: "Wrong Body Format!"});
 }
 
 async function getSaltFromMystenAPI(jwtEncoded : string ){

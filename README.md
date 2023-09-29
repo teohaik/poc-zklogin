@@ -6,7 +6,7 @@ This is a simple React App that demonstrates the Sui ZK Login flow.
 Logic is included in two main React files:
 
  - `src/app/page.tsx` which contains the initial page with the login button.
- - `src/app/auth/page.tsx` which contains the page that users gets redirected after successful login. It also handles:
+ - `src/app/auth/page.tsx` which contains the page that users get redirected after successful login. It also handles:
    - The decoding of the jwt token
    - The verification of the token
    - The generation of the ZK Proof
