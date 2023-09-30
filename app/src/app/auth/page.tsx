@@ -156,6 +156,11 @@ export default function Page() {
         //TODO: Store proof to avoid fetching it every time.
         const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
 
+        if(!proofResponse?.data?.zkp){
+            console.log("Error getting ZKP. Please check that Prover is running.");
+            setError("Error getting Zero Knowledge Proof");
+            return;
+        }
         console.log("zkp response = ", proofResponse.data.zkp);
 
         const partialZkSignature: ZkSignatureInputs = proofResponse.data.zkp as ZkSignatureInputs;
