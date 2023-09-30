@@ -19,5 +19,17 @@ Invocation of Mysten Labs APIs happens in the backend part:
 - `src/api/userinfo/store/route.tsx` - Saves user data, critical for transaction signing (Salt), to DB. Key = subject Id
 - `src/api/zkp/get/route.tsx` - Invokes Mysten Labs api to get the ZK Proof
 
+---
 
+### Development
 
+Just navigate to the `/src/app` folder and run
+ -   `npm install`
+ -   `npm run dev`
+
+This will fire up a local development server at your machine.
+
+#### Dependencies
+
+ - An active SUI account loaded with SUI should exist on testnet to be used as faucet. To use it, set  the `NEXT_PUBLIC_ADMIN_SECRET_KEY=` environment variable in your .env file. You can use `.env.development.local.example` as a template.
+ - Vercel KV storage is used as a database. To use it, create your own KV instance and set details in .env. You can use `.env.development.local.example` as a template.
