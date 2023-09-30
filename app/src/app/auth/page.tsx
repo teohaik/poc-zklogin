@@ -126,7 +126,6 @@ export default function Page() {
         });
     }
 
-
     async function getZkProofAndExecuteTx() {
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
@@ -157,8 +156,7 @@ export default function Page() {
         const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
 
         if(!proofResponse?.data?.zkp){
-            console.log("Error getting ZKP. Please check that Prover is running.");
-            setError("Error getting Zero Knowledge Proof");
+            createRuntimeError("Error getting Zero Knowledge Proof. Please check that Prover Service is running.");
             return;
         }
         console.log("zkp response = ", proofResponse.data.zkp);
@@ -186,7 +184,7 @@ export default function Page() {
         for (const coin of coins.data) {
             totalBalance += parseInt(coin.balance);
         }
-        totalBalance = totalBalance / 1000000000;
+        totalBalance = totalBalance / 1000000000;  //Converting MIST to SUI
         setUserBalance(totalBalance);
         console.log("total balance = ", totalBalance);
         return totalBalance > 0;
@@ -217,8 +215,7 @@ export default function Page() {
             setTransactionInProgress(false);
         }
         if (status == "failure") {
-            console.log("Gift Coin transfer Failed. Error = ", res?.effects);
-            setTransactionInProgress(false);
+            createRuntimeError("Gift Coin transfer Failed. Error = "+ res?.effects);
         }
     }
 
@@ -229,8 +226,7 @@ export default function Page() {
         //Getting Salt
         const userSalt = await getSalt(decodedJwt.sub, encodedJwt);
         if(!userSalt){
-            console.log("Error getting userSalt");
-            setError("Error getting userSalt");
+            createRuntimeError("Error getting userSalt");
             return;
         }
         //Storing UserKeyData
@@ -255,14 +251,12 @@ export default function Page() {
         const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
 
         if (!jwt_token_encoded) {
-            setError("Could not retrieve a valid JWT Token!")
-            console.log("Could not retrieve a valid JWT Token!");
+            createRuntimeError("Could not retrieve a valid JWT Token!")
             return;
         }
 
         if (!userKeyData) {
-            setError("user Data is null");
-            console.log("userKeyData is null");
+            createRuntimeError("user Data is null");
             return;
         }
 
@@ -271,6 +265,13 @@ export default function Page() {
         loadRequiredData(jwt_token_encoded);
 
     }, []);
+
+    function createRuntimeError(message: string) {
+        setError(message);
+        console.log(message);
+        setTransactionInProgress(false);
+    }
+
 
     return (
         <div id="cb" className="flex flex-col items-center mt-10">
