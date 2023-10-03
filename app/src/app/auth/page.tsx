@@ -346,7 +346,7 @@ export default function Page() {
                 </dl>
 
 
-                {zkProof ? (
+                {zkProof && enoughBalance(userBalance)? (
                     <div className="pt-5">
                         <button
                             type="submit"
