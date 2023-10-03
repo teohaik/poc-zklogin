@@ -35,7 +35,9 @@ export default function Page() {
             subject: subject,
             jwt: jwtEncoded!
         }
+        console.log("Getting salt...");
         console.log("Subject = ", subject);
+        console.log("jwt = ", jwtEncoded);
         const response = await axios.post('/api/userinfo/get/salt', getSaltRequest);
         console.log("getSalt response = ", response);
         if (response?.data.status == 200) {

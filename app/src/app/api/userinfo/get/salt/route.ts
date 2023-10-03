@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         if (dataRequest && dataRequest.subject && dataRequest.jwt) {
             console.log("Received request for FETCHING Salt for subject ", dataRequest.subject);
             let response = await getExisting(dataRequest);
-            if(!response) {
+            if(!response?.salt) {
                 console.log("Salt not found in KV store. Fetching from Mysten API. jwt = ", dataRequest.jwt, "subject = ", dataRequest.subject);
                 const saltFromMysten = await getSaltFromMystenAPI(dataRequest.jwt!);
 
