@@ -19,9 +19,12 @@ export interface UserKeyData {
 }
 
 
-export interface PersistentData {
-    ephemeralPublicKey?: string;
-    jwt?:string;
-    salt?: string;
+export interface GetSaltRequest {
+    jwt: string;
     subject:string;
+}
+
+export interface GetSaltResponse {
+    subject:string;
+    salt:string;
 }

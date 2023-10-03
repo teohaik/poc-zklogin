@@ -4,7 +4,7 @@ import axios from "axios";
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
-import { PersistentData, UserKeyData} from "@/app/types/UserInfo";
+import {UserKeyData} from "@/app/types/UserInfo";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
 
 export default function Home() {
@@ -71,7 +71,7 @@ export default function Home() {
                     redirect_uri: customRedirectUri
                 }).toString(),
                 // Test Client ID for devnet / testnet:
-                client_id: '25769832374-famecqrhe2gkebt5fvqms2263046lj96.apps.googleusercontent.com',
+                client_id: '595966210064-3nnnqvmaelqnqsmq448kv05po362smt2.apps.googleusercontent.com',
                 redirect_uri: REDIRECT_URI,
                 response_type: 'id_token',
                 scope: 'openid',
