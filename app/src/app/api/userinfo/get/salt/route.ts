@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
-import {PersistentData} from "@/app/types/UserInfo";
+import {GetSaltRequest, GetSaltResponse} from "@/app/types/UserInfo";
+import {generateRandomness} from "@mysten/zklogin";
+
+
+
 export async function POST(request: NextRequest) {
 
     const body = await request.json();
     try {
-        let dataRequest: PersistentData = body as PersistentData;
+        let dataRequest: GetSaltRequest = body as GetSaltRequest;
         if (dataRequest && dataRequest.subject && dataRequest.jwt) {
             console.log("Received request for FETCHING Salt for subject ", dataRequest.subject);
-            let response = await kv.get(dataRequest.subject);
+            let response = await getExisting(dataRequest);
             if(!response) {
                 console.log("Salt not found in KV store. Fetching from Mysten API. jwt = ", dataRequest.jwt, "subject = ", dataRequest.subject);
                 const saltFromMysten = await getSaltFromMystenAPI(dataRequest.jwt!);
+
+                //storing new salt in DB
+                kv.hset(dataRequest.subject, {"salt" : saltFromMysten});
+
+                //returning response
                 response = {subject: dataRequest.subject, salt: saltFromMysten} ;
                 console.log("response from mysten = ", response);
             }
-            return NextResponse.json({status: 200, statusText: "OK", data: response});
+            return NextResponse.json({status: 200, statusText: "OK", salt : response.salt});
         }
     }catch (e) {
         console.log("Wrong Request Body Format!. Inner error= ",e);
@@ -27,16 +36,37 @@ async function getSaltFromMystenAPI(jwtEncoded : string ){
     const url = "http://salt.api-devnet.mystenlabs.com/get_salt";
     const payload = {token: jwtEncoded};
 
-    const response = await fetch(url, {
-        method: "POST",
-        mode: "cors",
-        cache: "no-cache",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        referrerPolicy: "no-referrer",
-        body: JSON.stringify(payload),
-    });
-    const responseJson = await response.json();
-    return responseJson.salt;
+
+    //TEMP: Disabling Mysten API until problem is fixed. Instead, we will generate a random number.
+
+    // const response = await fetch(url, {
+    //     method: "POST",
+    //     mode: "cors",
+    //     cache: "no-cache",
+    //     headers: {
+    //         "Content-Type": "application/json",
+    //     },
+    //     referrerPolicy: "no-referrer",
+    //     body: JSON.stringify(payload),
+    // });
+   // const responseJson = await response.json();
+   // return responseJson.salt;
+    return generateRandomness().toString();
+}
+
+async function getExisting(dataRequest: GetSaltRequest) : Promise<GetSaltResponse | null> {
+    let salt : string | null = null;
+    try {
+        salt = await kv.hget(dataRequest.subject, "salt");
+    }catch (error ) {
+        const errorMessage = error as Error;
+        if(errorMessage.message.includes("WRONGTYPE")){
+            //We recently refactored KV store to use hash set instead of set.
+            //This error means that the key is an old entry and not a hash set. We should delete it from KV store.
+            console.log("WRONGTYPE error. Deleting key from KV store.");
+            kv.del(dataRequest.subject);
+            return null;
+        }
+    }
+    return {subject: dataRequest.subject, salt: salt!};
 }

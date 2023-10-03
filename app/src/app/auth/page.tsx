@@ -1,10 +1,10 @@
 "use client";
 
-import {useLayoutEffect, useState} from "react";
+import {useEffect, useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
-import {LoginResponse, PersistentData, UserKeyData} from "@/app/types/UserInfo";
+import {GetSaltRequest, LoginResponse, UserKeyData} from "@/app/types/UserInfo";
 
-import {genAddressSeed, generateRandomness, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
+import {genAddressSeed, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
@@ -21,46 +21,33 @@ export default function Page() {
     const [txDigest, setTxDigest] = useState<string | null>(null);
     const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
     const [userAddress, setUserAddress] = useState<string | null>(null);
+    const [zkProof, setZkProof] = useState<ZkSignatureInputs | null>(null);
     const [userSalt, setUserSalt] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState<number>(0);
     const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
 
     const {suiClient} = useSui();
 
+    const MINIMUM_BALANCE = 0.003;
 
-    async function getSalt(subject: string, encodedJwt: string) {
-        const dataRequest: PersistentData = {
+    async function getSalt(subject: string, jwtEncoded: string) {
+        const getSaltRequest: GetSaltRequest = {
             subject: subject,
-            jwt: encodedJwt!
+            jwt: jwtEncoded!
         }
         console.log("Subject = ", subject);
-        const response = await axios.post('/api/userinfo/get/salt', dataRequest);
+        const response = await axios.post('/api/userinfo/get/salt', getSaltRequest);
         console.log("getSalt response = ", response);
         if (response?.data.status == 200) {
-            const userData: PersistentData = response.data.data as PersistentData;
-            console.log("Salt fetched! Salt = ", userData.salt);
-            return userData.salt;
+            const userSalt = response.data.salt;
+            console.log("Salt fetched! Salt = ", userSalt);
+            return userSalt;
         } else {
             console.log("Error Getting SALT");
             return null;
         }
     }
 
-    function storeUserKeyData(encodedJwt: string, subject: string, salt: string,) {
-        const userKeyData: UserKeyData = JSON.parse(localStorage.getItem("userKeyData")!);
-        const dataToStore: PersistentData = {
-            ephemeralPublicKey: userKeyData.ephemeralPublicKey,
-            jwt: encodedJwt,
-            salt: salt,
-            subject: subject
-        };
-        axios.post('/api/userinfo/store', dataToStore)
-            .then((response) => {
-                console.log("response = ", response);
-            }).catch((error) => {
-            console.log("error = ", error);
-        });
-    }
 
     function printUsefulInfo(decodedJwt: LoginResponse, userKeyData: UserKeyData) {
         console.log("iat  = " + decodedJwt.iat);
@@ -73,9 +60,17 @@ export default function Page() {
     }
 
 
-    async function executeTransactionWithZKP(partialZkSignature :ZkSignatureInputs, ephemeralKeyPair: Ed25519Keypair, userKeyData: UserKeyData, decodedJwt: LoginResponse) {
+    async function executeTransactionWithZKP() {
+        setTransactionInProgress(true);
+        const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
+        const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
+        const partialZkSignature = zkProof!;
 
-        console.log("partialZkSignature = ", partialZkSignature);
+        if (!partialZkSignature || !ephemeralKeyPair || !userKeyData) {
+            createRuntimeError("Transaction cannot proceed. Missing critical data.");
+            return;
+        }
+
         const txb = new TransactionBlock();
 
         //Just a simple Demo call to create a little NFT weapon :p
@@ -112,7 +107,7 @@ export default function Page() {
                 showEffects: true
             }
         }).then((response) => {
-            if (response.effects?.status.status) {
+            if (response.effects?.status.status == "success") {
                 console.log("Transaction executed! Digest = ", response.digest);
                 setTxDigest(response.digest);
                 setTransactionInProgress(false);
@@ -126,7 +121,7 @@ export default function Page() {
         });
     }
 
-    async function getZkProofAndExecuteTx() {
+    async function getZkProof() {
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
@@ -155,15 +150,15 @@ export default function Page() {
         //TODO: Store proof to avoid fetching it every time.
         const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
 
-        if(!proofResponse?.data?.zkp){
+        if (!proofResponse?.data?.zkp) {
             createRuntimeError("Error getting Zero Knowledge Proof. Please check that Prover Service is running.");
             return;
         }
         console.log("zkp response = ", proofResponse.data.zkp);
 
-        const partialZkSignature: ZkSignatureInputs = proofResponse.data.zkp as ZkSignatureInputs;
+        setZkProof((proofResponse.data.zkp as ZkSignatureInputs));
 
-        await executeTransactionWithZKP(partialZkSignature, ephemeralKeyPair, userKeyData, decodedJwt);
+        setTransactionInProgress(false);
     }
 
 
@@ -187,7 +182,11 @@ export default function Page() {
         totalBalance = totalBalance / 1000000000;  //Converting MIST to SUI
         setUserBalance(totalBalance);
         console.log("total balance = ", totalBalance);
-        return totalBalance > 0;
+        return enoughBalance(totalBalance);
+    }
+
+    function enoughBalance(userBalance: number) {
+        return userBalance > MINIMUM_BALANCE;
     }
 
     async function giveSomeTestCoins(address: string) {
@@ -215,22 +214,19 @@ export default function Page() {
             setTransactionInProgress(false);
         }
         if (status == "failure") {
-            createRuntimeError("Gift Coin transfer Failed. Error = "+ res?.effects);
+            createRuntimeError("Gift Coin transfer Failed. Error = " + res?.effects);
         }
     }
 
     async function loadRequiredData(encodedJwt: string) {
         //Decoding JWT to get useful Info
-        const decodedJwt: LoginResponse = jwt_decode(encodedJwt!) as LoginResponse;
-
+        const decodedJwt: LoginResponse = await jwt_decode(encodedJwt!) as LoginResponse;
         //Getting Salt
         const userSalt = await getSalt(decodedJwt.sub, encodedJwt);
-        if(!userSalt){
+        if (!userSalt) {
             createRuntimeError("Error getting userSalt");
             return;
         }
-        //Storing UserKeyData
-        storeUserKeyData(encodedJwt!, decodedJwt.sub, userSalt!);
 
         //Generating User Address
         const address = jwtToAddress(encodedJwt!, BigInt(userSalt!));
@@ -266,6 +262,13 @@ export default function Page() {
 
     }, []);
 
+    useEffect(() => {
+        if (jwtEncoded && userSalt) {
+            console.log("jwtEncoded is defined. Getting ZK Proof...");
+            getZkProof();
+        }
+    }, [jwtEncoded, userSalt]);
+
     function createRuntimeError(message: string) {
         setError(message);
         console.log(message);
@@ -274,53 +277,91 @@ export default function Page() {
 
 
     return (
-        <div id="cb" className="flex flex-col items-center mt-10">
-            <h1>Callback page</h1>
-
-            <div id="header" className="pb-5 pt-6">
-                <h4>Login with External Provider Completed</h4>
+        <div id="cb" className="space-y-12">
+            <div className="px-4 sm:px-0">
+                <h3 className="text-base font-semibold leading-7 text-gray-900">Authenticated Area</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">Login with External Provider Completed</p>
             </div>
 
-            {userAddress ? (
-                    <div className="flex flex-col items-center mt-10">
-                        <h3>Address Generation Completed!</h3>
-                        <div id="contents" className="font-medium pb-6 pt-6">
-                            <p>User Address = {userAddress}</p>
-                        </div>
-                        <div id="contents" className="font-medium pb-6 pt-6">
-                            <p>Address Balance = {userBalance.toFixed(3)} SUI</p>
-                            {userBalance < 0.04 ? (
-                                <div>
-                                    <p>You may need some coins!</p>
-                                    <button
-                                        className="bg-green-500 text-white px-4 py-2 rounded-md"
-                                        disabled={!userAddress}
-                                        onClick={() => giveSomeTestCoins(userAddress!)}
-                                    >
-                                        Give me some coins please!
-                                    </button>
-                                </div>
 
-                            ) : null}
-                        </div>
-                        {userBalance > 0 ? (
-                            <div id="contents" className="font-medium pb-6">
-                                <button
-                                    className="bg-gray-400 text-white px-4 py-2 rounded-md"
-                                    disabled={!userAddress}
-                                    onClick={() => getZkProofAndExecuteTx()}
+            <div className="mt-6 border-t border-gray-100">
+                <dl className="divide-y divide-gray-100">
+                    {userAddress ? (
+                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">User Address</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{userAddress!}</span>
+                                <span className="ml-0"><button
+                                    type="button"
+                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(userAddress!)
+                                    }}
                                 >
-                                    Get ZKP Proof and Execute Transaction
-                                </button>
-                            </div>
-                        ) : null}
+                                Copy
+                            </button></span>
+                            </dd>
+                        </div>
+                    ) : null}
+                    {userAddress ? (
+                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">Balance</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{userBalance.toFixed(4)} SUI</span>
+                                <span className="ml-5">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                    disabled={!userAddress}
+                                    onClick={() => giveSomeTestCoins(userAddress!)}
+                                >
+                                        Airdrop
+                                    </button>
+                            </span>
+                            </dd>
+                        </div>
+                    ) : null}
+                    {userSalt ? (
+                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">User Salt</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{userSalt}</span>
+                            </dd>
+                        </div>
+                    ) : null
+                    }
+
+                    {zkProof ? (
+                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt className="text-sm font-medium leading-6 text-gray-900">ZK Proof (Header)</dt>
+                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                <span className="mr-5">{zkProof?.headerBase64.slice(0, 40)}...</span>
+                            </dd>
+                        </div>
+                    ) : null
+                    }
+
+                </dl>
+
+
+                {zkProof ? (
+                    <div className="pt-5">
+                        <button
+                            type="submit"
+                            className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                            disabled={!userAddress}
+                            onClick={() => executeTransactionWithZKP()}
+                        >
+                            Execute Transaction
+                        </button>
                     </div>
-                ) :
-                null
-            }
+                ) : null}
+
+            </div>
+
 
             {txDigest ? (
-                    <div className="flex flex-col items-center mt-10">
+                    <div className="flex flex-col items-center mt-5">
                         <h3>Transaction Completed!</h3>
                         <div id="contents" className="font-medium pb-6 pt-6">
                             <p>TxDigest = {txDigest}</p>
@@ -351,14 +392,15 @@ export default function Page() {
                     />
                 </div>
 
-            ): null}
+            ) : null}
 
             {error ? (
                 <div id="header" className="pb-5 pt-6 text-red-500 text-xl">
                     <h2>{error}</h2>
                 </div>
 
-            ): null}
+            ) : null}
+
         </div>
     );
 }
