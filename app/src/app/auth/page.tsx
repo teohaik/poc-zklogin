@@ -317,7 +317,7 @@ export default function Page() {
                                     disabled={!userAddress}
                                     onClick={() => giveSomeTestCoins(userAddress!)}
                                 >
-                                        Airdrop
+                                        Get Testnet Coins
                                     </button>
                             </span>
                             </dd>
@@ -399,6 +399,21 @@ export default function Page() {
             {error ? (
                 <div id="header" className="pb-5 pt-6 text-red-500 text-xl">
                     <h2>{error}</h2>
+                </div>
+
+            ) : null}
+
+            {!enoughBalance(userBalance) ? (
+                <div id="header2" className="pb-5 pt-6 text-red-500 text-l">
+                    <h2>Looks like you need some coins for testing...</h2>
+                    <button
+                        type="button"
+                        className="mt-5 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                        disabled={!userAddress}
+                        onClick={() => giveSomeTestCoins(userAddress!)}
+                    >
+                        Get Testnet Coins
+                    </button>
                 </div>
 
             ) : null}
