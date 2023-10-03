@@ -4,6 +4,7 @@ import {LoginResponse} from "@/app/types/UserInfo";
 import axios from "axios";
 import jwt_decode from "jwt-decode";
 
+
 export async function POST(request: NextRequest) {
 
     const zkpPayload = await request.json();
@@ -18,8 +19,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({code: 200, zkp: savedProof});
     }
     else{
-        console.log("ZK Proof not found in database. Creating proof from prover...");
-        const proverResponse = await axios.post('https://prover.mystenlabs.com/v1', zkpPayload);
+        const proverResponse = await getZKPFromProver(zkpPayload);
 
         if(proverResponse.status !== 200 || !proverResponse.data) {
             return NextResponse.json({code: proverResponse.status, message: proverResponse.statusText});
@@ -33,6 +33,12 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({code: 200, zkp: zkpProof});
     }
+}
+
+async function getZKPFromProver(zkpPayload : any) {
+    console.log("ZK Proof not found in database. Creating proof from prover...");
+    const proverURL = process.env.NEXT_PUBLIC_PROVER_API || "https://prover.mystenlabs.com/v1";
+    return await axios.post(proverURL, zkpPayload);
 }
 
 function storeProofInDatabase(zkpProof : string, subject: string) {

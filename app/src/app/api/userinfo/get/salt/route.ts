@@ -33,25 +33,21 @@ export async function POST(request: NextRequest) {
 }
 
 async function getSaltFromMystenAPI(jwtEncoded : string ){
-    const url = "http://salt.api-devnet.mystenlabs.com/get_salt";
+    const url : string = process.env.NEXT_PUBLIC_SALT_API || "https://salt.api.mystenlabs.com/get_salt";
     const payload = {token: jwtEncoded};
 
-
-    //TEMP: Disabling Mysten API until problem is fixed. Instead, we will generate a random number.
-
-    // const response = await fetch(url, {
-    //     method: "POST",
-    //     mode: "cors",
-    //     cache: "no-cache",
-    //     headers: {
-    //         "Content-Type": "application/json",
-    //     },
-    //     referrerPolicy: "no-referrer",
-    //     body: JSON.stringify(payload),
-    // });
-   // const responseJson = await response.json();
-   // return responseJson.salt;
-    return generateRandomness().toString();
+    const response = await fetch(url!, {
+        method: "POST",
+        mode: "cors",
+        cache: "no-cache",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        referrerPolicy: "no-referrer",
+        body: JSON.stringify(payload),
+    });
+   const responseJson = await response.json();
+   return responseJson.salt;
 }
 
 async function getExisting(dataRequest: GetSaltRequest) : Promise<GetSaltResponse | null> {
