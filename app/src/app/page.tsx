@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
@@ -11,12 +10,8 @@ export default function Home() {
 
 
     const {suiClient} = useSui();
-    const [error, setError] = useState<string | null>(null);
 
-    const [loginData, setLoginData] = useState<string | null>(null);
     const [loginUrl, setLoginUrl] = useState<string | null>();
-
-    const [loginDone, setLoginDone] = useState<boolean>(false);
 
     async function prepareLogin() {
         const {epoch, epochDurationMs, epochStartTimestampMs} = await suiClient.getLatestSuiSystemState();
