@@ -191,10 +191,21 @@ export default function Page() {
         return userBalance > MINIMUM_BALANCE;
     }
 
+
+    //** This is just for testing purposes. DO NOT USE IN PRODUCTION */
+    function getTestnetAdminSecretKey() {
+        return process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY;
+    }
+
     async function giveSomeTestCoins(address: string) {
         console.log("Giving some test coins to address " + address);
         setTransactionInProgress(true);
-        let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY!)));
+        const adminPrivateKey = getTestnetAdminSecretKey();
+        if (!adminPrivateKey) {
+            createRuntimeError("Admin Secret Key not found. Please set NEXT_PUBLIC_ADMIN_SECRET_KEY environment variable.");
+            return
+        }
+        let adminPrivateKeyArray = Uint8Array.from(Array.from(fromB64(adminPrivateKey)));
         const adminKeypair = Ed25519Keypair.fromSecretKey(adminPrivateKeyArray.slice(1));
         const tx = new TransactionBlock();
         const giftCoin = tx.splitCoins(tx.gas, [tx.pure(30000000)]);
