@@ -4,7 +4,7 @@ import axios from "axios";
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
-import { PersistentData, UserKeyData} from "@/app/types/UserInfo";
+import {UserKeyData} from "@/app/types/UserInfo";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
 
 export default function Home() {
