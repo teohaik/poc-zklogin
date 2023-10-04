@@ -120,6 +120,9 @@ export default function Page() {
             }
         }).catch((error) => {
             console.log("Error During Tx Execution. Details: ", error);
+            if(error.toString().includes("Signature is not valid")){
+                createRuntimeError("Signature is not valid. Please generate a new one by clicking on 'Get new ZK Proof'");
+            }
             setTransactionInProgress(false);
         });
     }
