@@ -64,6 +64,7 @@ export default function Page() {
 
 
     async function executeTransactionWithZKP() {
+        setError(null);
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
@@ -128,6 +129,7 @@ export default function Page() {
     }
 
     async function getZkProof(forceUpdate = false) {
+        setError(null);
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
@@ -204,6 +206,7 @@ export default function Page() {
     }
 
     async function giveSomeTestCoins(address: string) {
+        setError(null);
         console.log("Giving some test coins to address " + address);
         setTransactionInProgress(true);
         const adminPrivateKey = getTestnetAdminSecretKey();
