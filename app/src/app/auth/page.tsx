@@ -124,12 +124,6 @@ export default function Page() {
         });
     }
 
-    window.addEventListener('unhandledrejection', function (event) {
-
-        createRuntimeError("Generic error happened. Inner message = "+event.reason);
-
-    });
-
     async function getZkProof(forceUpdate = false) {
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
