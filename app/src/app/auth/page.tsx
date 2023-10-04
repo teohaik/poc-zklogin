@@ -21,6 +21,7 @@ export default function Page() {
     const [txDigest, setTxDigest] = useState<string | null>(null);
     const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
     const [userAddress, setUserAddress] = useState<string | null>(null);
+    const [subjectID, setSubjectID] = useState<string | null>(null);
     const [zkProof, setZkProof] = useState<ZkSignatureInputs | null>(null);
     const [userSalt, setUserSalt] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState<number>(0);
@@ -123,7 +124,13 @@ export default function Page() {
         });
     }
 
-    async function getZkProof(forceUpdate= false) {
+    window.addEventListener('unhandledrejection', function (event) {
+
+        createRuntimeError("Generic error happened. Inner message = "+event.reason);
+
+    });
+
+    async function getZkProof(forceUpdate = false) {
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
@@ -132,7 +139,7 @@ export default function Page() {
 
         const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
 
-        const zkpPayload : ZKPPayload =
+        const zkpPayload: ZKPPayload =
             {
                 jwt: jwtEncoded!,
                 extendedEphemeralPublicKey: toBigIntBE(
@@ -143,7 +150,7 @@ export default function Page() {
                 salt: userSalt!,
                 keyClaimName: "sub"
             };
-        const ZKPRequest : ZKPRequest = {
+        const ZKPRequest: ZKPRequest = {
             zkpPayload,
             forceUpdate
         }
@@ -236,6 +243,8 @@ export default function Page() {
     async function loadRequiredData(encodedJwt: string) {
         //Decoding JWT to get useful Info
         const decodedJwt: LoginResponse = await jwt_decode(encodedJwt!) as LoginResponse;
+
+        setSubjectID(decodedJwt.sub);
         //Getting Salt
         const userSalt = await getSalt(decodedJwt.sub, encodedJwt);
         if (!userSalt) {
@@ -337,11 +346,22 @@ export default function Page() {
                         </div>
                     ) : null}
                     {userSalt ? (
-                        <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                            <dt className="text-sm font-medium leading-6 text-gray-900">User Salt</dt>
-                            <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                                <span className="mr-5">{userSalt}</span>
-                            </dd>
+                        <div>
+
+                            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                                <dt className="text-sm font-medium leading-6 text-gray-900">User Salt</dt>
+                                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                    <span className="mr-5">{userSalt}</span>
+                                </dd>
+                            </div>
+                            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                                <dt className="text-sm font-medium leading-6 text-gray-900">Subject ID</dt>
+                                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                    <span className="mr-5">{subjectID}</span>
+                                </dd>
+                            </div>
+
+
                         </div>
                     ) : null
                     }
@@ -350,7 +370,7 @@ export default function Page() {
                         <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                             <dt className="text-sm font-medium leading-6 text-gray-900">ZK Proof (point A)</dt>
                             <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                                <span className="mr-5">{zkProof?.proofPoints.a.toString().slice(0, 30)}...</span>
+                                <span className="mr-5">{zkProof?.proofPoints?.a.toString().slice(0, 30)}...</span>
                                 <span className="ml-5">
                                 <button
                                     type="button"
@@ -368,7 +388,7 @@ export default function Page() {
                 </dl>
 
 
-                {zkProof && enoughBalance(userBalance)? (
+                {zkProof && enoughBalance(userBalance) ? (
                     <div className="pt-5">
                         <button
                             type="submit"
