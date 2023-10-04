@@ -13,6 +13,7 @@ import {SerializedSignature} from "@mysten/sui.js/src/cryptography";
 import {Ed25519Keypair} from "@mysten/sui.js/keypairs/ed25519";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
 import {Blocks} from 'react-loader-spinner'
+import {toast} from "react-hot-toast";
 
 export default function Page() {
 
@@ -257,8 +258,11 @@ export default function Page() {
 
         setUserAddress(address);
         setUserSalt(userSalt!);
-
-        checkIfAddressHasBalance(address);
+        const hasEnoughBalance = await checkIfAddressHasBalance(address);
+        if(!hasEnoughBalance){
+            await giveSomeTestCoins(address);
+            toast.success("We' ve fetched some coins for you, so you can get started with Sui !", {   duration: 8000,} );
+        }
 
         console.log("All required data loaded. ZK Address =", address);
     }
@@ -445,20 +449,20 @@ export default function Page() {
 
             ) : null}
 
-            {!enoughBalance(userBalance) ? (
-                <div id="header2" className="pb-5 pt-6 text-red-500 text-l">
-                    <h2>Looks like you need some coins for testing...</h2>
-                    <button
-                        type="button"
-                        className="mt-5 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                        disabled={!userAddress}
-                        onClick={() => giveSomeTestCoins(userAddress!)}
-                    >
-                        Get Testnet Coins
-                    </button>
-                </div>
+            {/*{!enoughBalance(userBalance) ? (*/}
+            {/*    <div id="header2" className="pb-5 pt-6 text-red-500 text-l">*/}
+            {/*        <h2>Looks like you need some coins for testing...</h2>*/}
+            {/*        <button*/}
+            {/*            type="button"*/}
+            {/*            className="mt-5 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"*/}
+            {/*            disabled={!userAddress}*/}
+            {/*            onClick={() => giveSomeTestCoins(userAddress!)}*/}
+            {/*        >*/}
+            {/*            Get Testnet Coins*/}
+            {/*        </button>*/}
+            {/*    </div>*/}
 
-            ) : null}
+            {/*) : null}*/}
 
         </div>
     );
