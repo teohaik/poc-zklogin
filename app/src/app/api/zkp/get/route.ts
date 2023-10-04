@@ -1,25 +1,28 @@
 import {NextRequest, NextResponse} from "next/server";
 import {kv} from "@vercel/kv";
-import {LoginResponse} from "@/app/types/UserInfo";
+import {LoginResponse, ZKPRequest} from "@/app/types/UsefulTypes";
 import axios from "axios";
 import jwt_decode from "jwt-decode";
 
 
 export async function POST(request: NextRequest) {
 
-    const zkpPayload = await request.json();
-    const decodedJwt: LoginResponse = jwt_decode(zkpPayload?.jwt!) as LoginResponse;
+    const body = await request.json();
+    const zkpRequest = body as ZKPRequest;
+    if(!zkpRequest) return NextResponse.json({code: 422, message: "Wrong Body Format!"});
 
-    console.log("Received request to get proof for subject = ", decodedJwt.sub);
+    const decodedJwt: LoginResponse = jwt_decode(zkpRequest.zkpPayload?.jwt!) as LoginResponse;
+
+    console.log("Received request to get proof for subject = ", decodedJwt.sub, " Force Update = ", zkpRequest.forceUpdate);
 
     const savedProof = await kv.hget(decodedJwt?.sub, "zkp");
 
-    if (savedProof) {
+    if (savedProof && !zkpRequest.forceUpdate) {
         console.log("ZK Proof found in database.");
         return NextResponse.json({code: 200, zkp: savedProof});
     }
     else{
-        const proverResponse = await getZKPFromProver(zkpPayload);
+        const proverResponse = await getZKPFromProver(zkpRequest.zkpPayload);
 
         if(proverResponse.status !== 200 || !proverResponse.data) {
             return NextResponse.json({code: proverResponse.status, message: proverResponse.statusText});

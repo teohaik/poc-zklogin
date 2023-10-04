@@ -2,7 +2,7 @@
 
 import {useEffect, useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
-import {GetSaltRequest, LoginResponse, UserKeyData} from "@/app/types/UserInfo";
+import {GetSaltRequest, LoginResponse, UserKeyData, ZKPPayload, ZKPRequest} from "@/app/types/UsefulTypes";
 
 import {genAddressSeed, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
 import axios from "axios";
@@ -123,7 +123,7 @@ export default function Page() {
         });
     }
 
-    async function getZkProof() {
+    async function getZkProof(forceUpdate= false) {
         setTransactionInProgress(true);
         const decodedJwt: LoginResponse = jwt_decode(jwtEncoded!) as LoginResponse;
         const {userKeyData, ephemeralKeyPair} = getEphemeralKeyPair();
@@ -132,7 +132,7 @@ export default function Page() {
 
         const ephemeralPublicKeyArray: Uint8Array = fromB64(userKeyData.ephemeralPublicKey);
 
-        const zkpPayload =
+        const zkpPayload : ZKPPayload =
             {
                 jwt: jwtEncoded!,
                 extendedEphemeralPublicKey: toBigIntBE(
@@ -140,17 +140,19 @@ export default function Page() {
                 ).toString(),
                 jwtRandomness: userKeyData.randomness,
                 maxEpoch: userKeyData.maxEpoch,
-                salt: userSalt,
+                salt: userSalt!,
                 keyClaimName: "sub"
             };
-
-        console.log("about to post zkpPayload = ", zkpPayload);
+        const ZKPRequest : ZKPRequest = {
+            zkpPayload,
+            forceUpdate
+        }
+        console.log("about to post zkpPayload = ", ZKPRequest);
         setPublicKey(zkpPayload.extendedEphemeralPublicKey);
 
         //Invoking our custom backend to delagate Proof Request to Mysten backend.
         // Delegation was done to avoid CORS errors.
-        //TODO: Store proof to avoid fetching it every time.
-        const proofResponse = await axios.post('/api/zkp/get', zkpPayload);
+        const proofResponse = await axios.post('/api/zkp/get', ZKPRequest);
 
         if (!proofResponse?.data?.zkp) {
             createRuntimeError("Error getting Zero Knowledge Proof. Please check that Prover Service is running.");
@@ -346,9 +348,18 @@ export default function Page() {
 
                     {zkProof ? (
                         <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                            <dt className="text-sm font-medium leading-6 text-gray-900">ZK Proof (Header)</dt>
+                            <dt className="text-sm font-medium leading-6 text-gray-900">ZK Proof (point A)</dt>
                             <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                                <span className="mr-5">{zkProof?.headerBase64.slice(0, 40)}...</span>
+                                <span className="mr-5">{zkProof?.proofPoints.a.toString().slice(0, 30)}...</span>
+                                <span className="ml-5">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                    onClick={() => getZkProof(true)}
+                                >
+                                        Get new ZK Proof
+                                    </button>
+                            </span>
                             </dd>
                         </div>
                     ) : null
@@ -383,9 +394,9 @@ export default function Page() {
                             <button
                                 className="bg-gray-400 text-white px-4 py-2 rounded-md"
                                 disabled={!userAddress}
-                                onClick={() => window.open(`https://suiexplorer.com/txblock/${txDigest}?network=testnet`, "_blank")}
+                                onClick={() => window.open(`https://testnet.suivision.xyz/txblock/${txDigest}`, "_blank")}
                             >
-                                See it on Sui Explorer
+                                See it on Explorer
                             </button>
                         </div>
                     </div>

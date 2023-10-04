@@ -3,7 +3,7 @@
 import {generateNonce, generateRandomness} from '@mysten/zklogin';
 import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
-import {UserKeyData} from "@/app/types/UserInfo";
+import {UserKeyData} from "@/app/types/UsefulTypes";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
 
 export default function Home() {

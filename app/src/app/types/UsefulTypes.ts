@@ -1,3 +1,4 @@
+
 export interface LoginResponse {
     iss: string;
     azp: string;
@@ -28,3 +29,17 @@ export interface GetSaltResponse {
     subject:string;
     salt:string;
 }
+
+export interface ZKPRequest {
+    zkpPayload: ZKPPayload;
+    forceUpdate: boolean;
+}
+export interface ZKPPayload
+    {
+        jwt: string,
+        extendedEphemeralPublicKey: string,
+        jwtRandomness: string,
+        maxEpoch: number,
+        salt: string,
+        keyClaimName: string
+    };
