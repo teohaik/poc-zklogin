@@ -5,6 +5,7 @@ import {useSui} from "@/app/hooks/useSui";
 import {useLayoutEffect, useState} from "react";
 import {UserKeyData} from "@/app/types/UsefulTypes";
 import {Ed25519Keypair} from '@mysten/sui.js/keypairs/ed25519';
+import {Keypair, PublicKey} from "@mysten/sui.js/cryptography";
 
 export default function Home() {
 
@@ -18,11 +19,11 @@ export default function Home() {
 
 
         const maxEpoch = parseInt(epoch) + 2; // this means the ephemeral key will be active for 2 epochs from now.
-        const ephemeralKeyPair = new Ed25519Keypair();
+        const ephemeralKeyPair : Keypair = new Ed25519Keypair();
         const ephemeralPrivateKeyB64 = ephemeralKeyPair.export().privateKey;
 
 
-        const ephemeralPublicKey = ephemeralKeyPair.getPublicKey()
+        const ephemeralPublicKey : PublicKey = ephemeralKeyPair.getPublicKey()
         const ephemeralPublicKeyB64 = ephemeralPublicKey.toBase64();
 
         const jwt_randomness = generateRandomness();
@@ -31,7 +32,7 @@ export default function Home() {
         console.log("current epoch = " + epoch);
         console.log("maxEpoch = " + maxEpoch);
         console.log("jwt_randomness = " + jwt_randomness);
-        console.log("ephemeral public key = " + ephemeralPublicKey);
+        console.log("ephemeral public key = " + ephemeralPublicKeyB64);
         console.log("nonce = " + nonce);
 
         const userKeyData: UserKeyData = {
