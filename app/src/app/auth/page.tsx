@@ -4,16 +4,17 @@ import {useEffect, useLayoutEffect, useState} from "react";
 import jwt_decode from "jwt-decode";
 import {GetSaltRequest, LoginResponse, UserKeyData, ZKPPayload, ZKPRequest} from "@/app/types/UsefulTypes";
 
-import {genAddressSeed, getZkSignature, jwtToAddress, ZkSignatureInputs} from '@mysten/zklogin';
+import {genAddressSeed, getZkLoginSignature, jwtToAddress} from '@mysten/zklogin';
 import axios from "axios";
 import {toBigIntBE} from "bigint-buffer";
 import {fromB64} from "@mysten/bcs";
 import {useSui} from "@/app/hooks/useSui";
-import {SerializedSignature} from "@mysten/sui.js/src/cryptography";
+import {SerializedSignature} from "@mysten/sui.js/cryptography";
 import {Ed25519Keypair} from "@mysten/sui.js/keypairs/ed25519";
 import {TransactionBlock} from '@mysten/sui.js/transactions';
 import {Blocks} from 'react-loader-spinner'
 import {toast} from "react-hot-toast";
+import { ZkLoginSignatureInputs} from "@mysten/sui.js/dist/cjs/zklogin/bcs";
 
 export default function Page() {
 
@@ -23,7 +24,7 @@ export default function Page() {
     const [jwtEncoded, setJwtEncoded] = useState<string | null>(null);
     const [userAddress, setUserAddress] = useState<string | null>(null);
     const [subjectID, setSubjectID] = useState<string | null>(null);
-    const [zkProof, setZkProof] = useState<ZkSignatureInputs | null>(null);
+    const [zkProof, setZkProof] = useState<ZkLoginSignatureInputs | null>(null);
     const [userSalt, setUserSalt] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState<number>(0);
     const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
@@ -96,7 +97,7 @@ export default function Page() {
 
         const addressSeed = genAddressSeed(BigInt(userSalt!), "sub", decodedJwt.sub, decodedJwt.aud);
 
-        const zkSignature: SerializedSignature = getZkSignature({
+        const zkSignature: SerializedSignature = getZkLoginSignature({
             inputs: {
                 ...partialZkSignature,
                 addressSeed: addressSeed.toString(),
@@ -167,7 +168,7 @@ export default function Page() {
         }
         console.log("zkp response = ", proofResponse.data.zkp);
 
-        setZkProof((proofResponse.data.zkp as ZkSignatureInputs));
+        setZkProof((proofResponse.data.zkp as ZkLoginSignatureInputs));
 
         setTransactionInProgress(false);
     }

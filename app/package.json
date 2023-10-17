@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@mysten/bcs": "^0.7.4",
-    "@mysten/sui.js": "^0.42.0",
+    "@mysten/sui.js": "^0.44.0",
     "@mysten/wallet-kit": "^0.7.2",
-    "@mysten/zklogin": "^0.1.4",
+    "@mysten/zklogin": "^0.3.2",
     "@types/node": "20.4.1",
     "@types/react": "18.2.14",
     "@types/react-dom": "18.2.6",
