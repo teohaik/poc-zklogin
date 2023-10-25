@@ -3,6 +3,8 @@
 
 This is a simple React App that demonstrates the Sui ZK Login flow.
 
+> ##### Runs on Sui Testnet 
+
 Logic is included in two main React files:
 
  - `src/app/page.tsx` which contains the initial page with the login button.
