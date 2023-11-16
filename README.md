@@ -1,7 +1,7 @@
 # ZK Login Flow Tester
 
 
-This is a simple React App that demonstrates the Sui ZK Login flow.
+This is a simple React App that demonstrates the [Sui ZK Login flow](https://docs.sui.io/concepts/cryptography/zklogin).
 
 > ##### Runs on Sui Testnet 
 
