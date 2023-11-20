@@ -15,8 +15,8 @@ dependencies:
     specifier: ^0.7.2
     version: 0.7.2(bufferutil@4.0.7)(encoding@0.1.13)(react-dom@18.2.0)(react@18.2.0)(utf-8-validate@5.0.10)
   '@mysten/zklogin':
-    specifier: ^0.3.2
-    version: 0.3.2(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10)
+    specifier: ^0.3.6
+    version: 0.3.6(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10)
   '@types/node':
     specifier: 20.4.1
     version: 20.4.1
@@ -688,6 +688,26 @@ packages:
       - utf-8-validate
     dev: false
 
+  /@mysten/sui.js@0.46.1(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10):
+    resolution: {integrity: sha512-YSqay1RJbstJt1AILoAcucWhm72ywB//qQrECl1b3CNiuAHG5iYUxlQk7i0a+2+cBnhlVvkOU4PePBMkABqn3w==}
+    engines: {node: '>=16'}
+    dependencies:
+      '@mysten/bcs': 0.8.1
+      '@noble/curves': 1.2.0
+      '@noble/hashes': 1.3.2
+      '@open-rpc/client-js': 1.8.1(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10)
+      '@scure/bip32': 1.3.2
+      '@scure/bip39': 1.2.1
+      '@suchipi/femver': 1.0.0
+      events: 3.3.0
+      superstruct: 1.0.3
+      tweetnacl: 1.0.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
+    dev: false
+
   /@mysten/wallet-kit-core@0.6.2(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10):
     resolution: {integrity: sha512-5+4TZmVSiD9zH2XOwr+mtdfC55UHIIKTOwX7AJ7tNVr/4ozVdzjz5alItQ9c7tjhxW+SvhqJs0AS6I8kecei2Q==}
     dependencies:
@@ -729,11 +749,11 @@ packages:
       - utf-8-validate
     dev: false
 
-  /@mysten/zklogin@0.3.2(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10):
-    resolution: {integrity: sha512-TtQUe4Jz3YmFhBiMwXworZ4IpDWEIxstK2pK4k1PwlUPXBNu6ZdJ0MAHlmOlOWYGoEBtJmch+qNFnK+dUtPH5A==}
+  /@mysten/zklogin@0.3.6(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10):
+    resolution: {integrity: sha512-DV+piDGEjNOL8mxipQ9De4NncXJoQmW+KH8tTvaneCpaMeRCsfFbXYp3TKvyG+JLbU1bNBkhBgHGytXnIxg4yg==}
     dependencies:
       '@mysten/bcs': 0.8.1
-      '@mysten/sui.js': 0.44.0(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10)
+      '@mysten/sui.js': 0.46.1(bufferutil@4.0.7)(encoding@0.1.13)(utf-8-validate@5.0.10)
       '@noble/hashes': 1.3.2
       jose: 4.14.6
       poseidon-lite: 0.2.0
