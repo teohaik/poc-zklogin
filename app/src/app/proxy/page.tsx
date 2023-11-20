@@ -14,7 +14,7 @@ export default function Page() {
 
     return (
         <>
-            <span>Redirecting failed. Check URL redirect_uri param</span>
+            <span>Redirect failed. Check URL redirect_uri param</span>
         </>
     );
 }
