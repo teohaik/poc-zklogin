@@ -19,7 +19,6 @@ export interface UserKeyData {
     maxEpoch:number;
 }
 
-
 export interface GetSaltRequest {
     jwt: string;
     subject:string;
