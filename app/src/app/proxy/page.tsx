@@ -1,7 +1,7 @@
 "use client"
 // import {useRouter} from 'next/router';
 
-export default function Page(params: any) {
+export default function Page(params: { searchParams: any }) {
     // const router = useRouter();
     const urlParams = new URLSearchParams(params.searchParams);
     const redirect_uri = urlParams.get("redirect_uri");
